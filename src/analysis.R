@@ -1,15 +1,8 @@
 library(kernlab)
-#library(lubridate)
 library(hms) 
 library(graphkernels)
 
 #===================================================================
-
-
-graphKernelExperiments <- function(dataset, target, cost, runs, scale){
-  
-}
-
 #===================================================================
 
 VHtest <- function(dataset, target, cost, runs, scale){
@@ -29,19 +22,16 @@ VHtest <- function(dataset, target, cost, runs, scale){
 
 #===================================================================
 
-
 # Tunes the cost parameter of the ksvm function from the values in the given 
 # cost vector. SVM is learned with 10-fold CV
 # Input: 
 # - gram is the precomputed Gram matrix of a kernel with class type matrixKernel
 # - target is the target vector containing class information stored as factors
 # - cost is a numeric vector containing the desired cost values to tune
-# Output: A list containing the model with the best classification accuracy (Ties 
-# are broken based on which model has the least number of support vectors), and the runtime of the function
+# Output: A list containing statistics for each svm computed
 
 tuneSvmCost <- function(gram, target, cost){
   
-  #sigfig <- 2
   folds <- 10
   
   #----------------------------------------
@@ -55,10 +45,47 @@ tuneSvmCost <- function(gram, target, cost){
     currSvm <- ksvm(gram, target, C = cost[i], cross = folds)
     clockout <- as_hms(Sys.time())
     
-    run[[i]] <- list("cost" = cost[i], "CVerror" = currSvm@cross, "Accuracy" = (1-currSvm@error), "cvTime" = (clockout - clockin))
+    run[[i]] <- list("cost" = cost[i], "CVerror" = currSvm@cross, "Accuracy" = getAccuracy(currSvm), "cvTime" = (clockout - clockin))
   }
   
   return(run)
+}
+
+
+#===================================================================
+
+
+tuneHyperparameter <- function(dataset, target, hyperparameter, cost, scale, kernel){
+  
+  test <- vector(mode = "list", length = length(hyperparameter))
+  
+  for(i in 1:length(hyperparameter)){
+    
+    clockin <- as_hms(Sys.time())
+    K <- computeKernel(dataset, kernel, hyperparameter[i])
+    if(scale){
+      K <- scaleToUnitInterval(K) 
+    }
+    clockout <- as_hms(Sys.time())
+    
+    currKernelComputeTime <- clockout - clockin
+    
+    cv <- tuneSvmCost(K, target, cost)
+    
+    temp <- list("hyperparameter" = hyperparameter[i], "kernelComputeTime" = currKernelComputeTime)
+    
+    test[[i]] <- append(temp, cv)
+  }  
+  
+  return(test)
+}
+
+
+#===================================================================
+
+
+writeToFile() <- function(test){
+  
 }
 
 
@@ -104,41 +131,6 @@ computeKernel <- function(dataset, kernel, parameter){
   
   return(K)
 }
-
-
-#===================================================================
-
-
-tuneHyperparameter <- function(dataset, target, hyperparameter, cost, scale, kernel){
-  
-  test <- vector(mode = "list", length = length(hyperparameter))
-  
-  for(i in 1:length(hyperparameter)){
-    
-    clockin <- as_hms(Sys.time())
-    K <- computeKernel(dataset, kernel, hyperparameter[i])
-    if(scale){
-      K <- scaleToUnitInterval(K) 
-    }
-    clockout <- as_hms(Sys.time())
-    
-    currKernelComputeTime <- clockout - clockin
-    
-    cv <- tuneSvmCost(K, target, cost)
-    
-    temp <- list("hyperparameter" = hyperparameter[i], "kernelComputeTime" = currKernelComputeTime)
-    
-    test[[i]] <- append(temp, cv)
-  }  
-  
-  return(test)
-}
-
-
-#===================================================================
-
-
-# Make a general hyperparameter tuner that is passed a numeric value which decides which gram matrix method to call
 
 
 #===================================================================
@@ -267,26 +259,6 @@ linearEvaluation <- function(x, m, b){
 
 #===================================================================
 
-
-createTestObject <- function(model, kernelComputeTime, costTuneTime){
-  testObj <- list("bestModel" = model, "kernelComputationTime" = kernelComputeTime, "costTuningComputationTime" = costTuneTime)
-  class(testObj) <- "Test_Object"
-  return(testObj)
-}
-
-
-#===================================================================
-
-
-createModelObject <- function(model, parameter){
-  modelObj <- list("model" = model, "parameter" = parameter)
-  class(modelObj) <- "SVM_Model"
-  return(modelObj)
-}
-
-
-#===================================================================
-
 # Need to allow for currBest to be null so that function loops can run from 1 to length(param)
 isBetterModel <- function(currBest, newModel){
   
@@ -302,7 +274,7 @@ isBetterModel <- function(currBest, newModel){
 
 #===================================================================
 
-
+#unfinished
 getBestModel <- function(modelList){
   best <- modelList[1]
   
@@ -339,182 +311,6 @@ printStats <- function(accuracy, runtime){
 
 
 #===================================================================
-
-
-tuneVH <- function(dataset, target, cost, scale){
-  
-  kernelComputeTime <- c(0)
-  costTuneTime <- c(0)
-  
-  clockin <- as_hms(Sys.time())
-  K <- CalculateVertexHistKernel(dataset)
-  if(scale){
-    K <- scaleToUnitInterval(K) 
-  }
-  clockout <- as_hms(Sys.time())
-  
-  kernelComputeTime[1] <- clockout - clockin
-  
-  clockin <- as_hms(Sys.time())
-  svm <- tuneSvmCost(K, target, cost)
-  clockout <- as_hms(Sys.time())
-  
-  costTuneTime[1] <- clockout - clockin
-  
-  bestModel <- createModelObject(svm, NULL)
-  
-  testObj.VH <- createTestObject(bestModel, kernelComputeTime, costTuneTime)
-  
-  return(testObj.VH)
-}
-
-
-#===================================================================
-
-
-tuneWL <- function(dataset, target, height, cost, scale){
-  
-  kernelComputeTime <- c(rep(0,length(height)))
-  costTuneTime <- c(rep(0,length(height)))
-  
-  message(paste('Training with height =', height[1], '...'))
-  
-  start <- as_hms(Sys.time())
-  
-  clockin <- start
-  K <- CalculateWLKernel(dataset, height[1])
-  if(scale){
-    K <- scaleToUnitInterval(K) 
-  }
-  clockout <- as_hms(Sys.time())
-  kernelComputeTime[1] <- clockout - clockin
-  
-  clockin <- as_hms(Sys.time())
-  svm <- tuneSvmCost(K, target, cost)
-  currBestModel <- createModelObject(svm, height[1])
-  clockout <- as_hms(Sys.time())
-  
-  costTuneTime[1] <- clockout - clockin
-  
-  acc <- getAccuracy(currBestModel$model)
-  message(paste('With cost', currBestModel$model@param, 'achieved an accuracy of', acc))
-  
-  if(length(height) > 1){
-    for(i in 2:length(height)){
-      message(paste('Training with height =', height[i], '...'))
-      
-      clockin <- as_hms(Sys.time())
-      K <- CalculateWLKernel(dataset, height[i])
-      if(scale){
-        K <- scaleToUnitInterval(K) 
-      }
-      clockout <- as_hms(Sys.time())
-      
-      kernelComputeTime[i] <- clockout - clockin
-      
-      clockin <- as_hms(Sys.time())
-      currModel <- tuneSvmCost(K, target, cost)
-      clockout <- as_hms(Sys.time())
-      
-      costTuneTime[i] <- clockout - clockin
-      
-      acc <-getAccuracy(currModel)
-      message(paste('With cost', currModel@param, 'and height', height[i], 'achieved an accuracy of', acc))
-      
-      if(isBetterModel(currBestModel$model, currModel)){
-        currBestModel <- createModelObject(currModel, height[i])
-      }
-    }  
-  }
-  
-  end <- Sys.time()
-  totalTime <- end - start
-  
-  message(paste('Total WL tuning runtime:', as_hms(totalTime)))
-  
-  testObj.WL <- createTestObject(currBestModel, kernelComputeTime, costTuneTime)
-  
-  return(testObj.WL)
-}
-
-
-#===================================================================
-
-
-tuneGR <- function(dataset, target, coef, cost, scale){
-  
-  kernelComputeTime <- c(rep(0,length(coef)))
-  costTuneTime <- c(rep(0,length(coef)))
-  
-  message(paste('Training with coefficient =', coef[1], '...'))
-  
-  start <- as_hms(Sys.time())
-  
-  clockin <- start
-  K <- CalculateGeometricRandomWalkKernel(dataset, coef[1])
-  if(scale){
-    K <- scaleToUnitInterval(K) 
-  }
-  clockout <- as_hms(Sys.time())
-  kernelComputeTime[1] <- clockout - clockin
-  
-  clockin <- as_hms(Sys.time())
-  svm <- tuneSvmCost(K, target, cost)
-  currBestModel <- createModelObject(svm, coef[1])
-  clockout <- as_hms(Sys.time())
-  
-  costTuneTime[1] <- clockout - clockin
-  
-  acc <- getAccuracy(currBestModel$model)
-  message(paste('With cost', currBestModel$model@param, 'achieved an accuracy of', acc))
-  
-  
-  if(length(coef) > 1){
-    for(i in 2:length(coef)){
-      message(paste('Training with coefficient =', coef[i], '...'))
-      
-      clockin <- as_hms(Sys.time())
-      K <- CalculateGeometricRandomWalkKernel(dataset, coef[i])
-      if(scale){
-        K <- scaleToUnitInterval(K) 
-      }
-      clockout <- as_hms(Sys.time())
-      
-      kernelComputeTime[i] <- clockout - clockin
-      
-      clockin <- as_hms(Sys.time())
-      currModel <- tuneSvmCost(K, target, cost)
-      clockout <- as_hms(Sys.time())
-      
-      costTuneTime[i] <- clockout - clockin
-      
-      acc <-getAccuracy(currModel)
-      message(paste('With cost', currModel@param, 'and coefficient', coef[i], 'achieved an accuracy of', acc))
-      
-      if(isBetterModel(currBestModel$model, currModel)){
-        currBestModel <- createModelObject(currModel, coef[i])
-      }
-    }  
-  }
-  
-  end <- Sys.time()
-  totalTime <- end - start
-  
-  message(paste('Total GR tuning runtime:', as_hms(totalTime)))
-  
-  testObj.GR <- createTestObject(currBestModel, kernelComputeTime, costTuneTime)
-  
-  return(testObj.GR)
-}
-
-
-
-
-
-
-
-
-
 
 
 # tuneHyperparameter <- function(dataset, target, hyperparameter, cost, scale, kernel){
