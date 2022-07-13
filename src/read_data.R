@@ -15,8 +15,6 @@ read.mutag <- function() {
 
 
 
-
-
 # Not sure if this works
 read.dataset <- function(name){
   lb <- unlist(read.table(paste0("data/", name, ".label")))
