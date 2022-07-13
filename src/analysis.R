@@ -275,17 +275,17 @@ isBetterModel <- function(currBest, newModel){
 #===================================================================
 
 #unfinished
-getBestModel <- function(modelList){
-  best <- modelList[1]
-  
-  if(length(modelList) > 1){
-    for(i in 2:length(modelList)){
-      
-    }
-  }
-  
-  return(best)
-}
+# getBestModel <- function(modelList){
+#   best <- modelList[1]
+#   
+#   if(length(modelList) > 1){
+#     for(i in 2:length(modelList)){
+#       
+#     }
+#   }
+#   
+#   return(best)
+# }
 
 
 #===================================================================
