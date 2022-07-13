@@ -5,14 +5,19 @@ library(graphkernels)
 
 
 #===================================================================
-
-
-
+# Function for running SVM experiment with the given kernel on the given 
+# dataset. Experiment runs 10-fold CV for each hyperparameter. Experiment 
+# is repeats n times, where n is runs
+# INPUTS:
+# dataset: list object representing the dataset
+# kernel: string containing key for kernel
+# cost: numeric vector containing costs for SVM
+# hyperparameter: numeric vector containing kernel hyperparameters. If none are to be used, pass c(NA)
+# runs: Number of times to repeat
 #===================================================================
-runExperiment <- function(dataset, cost, hyperparameter, kernel){
+runExperiment <- function(dataset, kernel, cost, hyperparameter, runs){
 
   scale <- TRUE
-  runs <- 2
 
   #-----------------------
 
@@ -28,7 +33,6 @@ runExperiment <- function(dataset, cost, hyperparameter, kernel){
 
   message(paste("...done!"))
 
-  #test <- append(list("kernel" = kernel, "dataset" = deparse(substitute(dataset))), test)
   writeToFile(experiment, kernel)
 
   clockout <- as_hms(Sys.time())
@@ -40,10 +44,8 @@ runExperiment <- function(dataset, cost, hyperparameter, kernel){
 
 #===================================================================
 
-
+#===================================================================
 tuneHyperparameter <- function(experiment, dataset, hyperparameter, cost, scale, kernel){
-
-  #test <- vector(mode = "list", length = length(hyperparameter))
 
   for(i in 1:length(hyperparameter)){
 
@@ -83,8 +85,6 @@ tuneSvmCost <- function(experiment, gram, target, cost){
 
   class(gram) <- "kernelMatrix"
 
-  #run <- vector(mode = "list", length = length(cost))
-
   for(i in 1:length(cost)){
     clockin <- as_hms(Sys.time())
     currSvm <- ksvm(gram, target, C = cost[i], cross = folds)
@@ -96,8 +96,6 @@ tuneSvmCost <- function(experiment, gram, target, cost){
     experiment[[i+2]]$cv_error <- currSvm@cross
     experiment[[i+2]]$training_error <- currSvm@error
     experiment[[i+2]]$cv_time <- (clockout - clockin)
-
-    #run[[i]] <- list("cost" = cost[i], "CVerror" = currSvm@cross, "TrainingError" = currSvm@error, "cvTime" = (clockout - clockin))
   }
 
   return(experiment)
@@ -133,9 +131,6 @@ createExperimentObject <- function(dataset, kernel, cost, hyperparameter, runs){
 
   return(testObj)
 }
-
-#===================================================================
-
 
 #===================================================================
 
