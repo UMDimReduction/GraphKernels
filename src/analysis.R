@@ -28,12 +28,12 @@ runExperiment <- function(dataset, kernel, cost, hyperparameter, runs){
 
   for(i in 1:runs){
     message(paste('Run #', i))
-    experiment[[i+2]] <- tuneHyperparameter(experiment = experiment[[i+2]], dataset = dataset, hyperparameter = hyperparameter, cost = cost, scale = scale, kernel = kernel)
+    experiment[[i + getFirstRunIndex() - 1]] <- tuneHyperparameter(experiment = experiment[[i + getFirstRunIndex() - 1]], dataset = dataset, hyperparameter = hyperparameter, cost = cost, scale = scale, kernel = kernel)
   }
 
   message(paste("...done!"))
 
-  writeToFile(experiment, kernel)
+  writeToFile(experiment, kernel, deparse(substitute(dataset)))
 
   clockout <- as_hms(Sys.time())
   time <- clockout - clockin
@@ -90,12 +90,12 @@ tuneSvmCost <- function(experiment, gram, target, cost){
     currSvm <- ksvm(gram, target, C = cost[i], cross = folds)
     clockout <- as_hms(Sys.time())
 
-    message(paste0("i: ", i))
+    j <- i + getFirstCostIndex() - 1
 
-    experiment[[i+2]]$cost <- cost[i]
-    experiment[[i+2]]$cv_error <- currSvm@cross
-    experiment[[i+2]]$training_error <- currSvm@error
-    experiment[[i+2]]$cv_time <- (clockout - clockin)
+    experiment[[j]]$cost <- cost[i]
+    experiment[[j]]$cv_error <- currSvm@cross
+    experiment[[j]]$training_error <- currSvm@error
+    experiment[[j]]$cv_time <- (clockout - clockin)
   }
 
   return(experiment)
@@ -132,11 +132,48 @@ createExperimentObject <- function(dataset, kernel, cost, hyperparameter, runs){
   return(testObj)
 }
 
+
+getNumRuns <- function(expObject){
+  return(length(expObject) - (getFirstRunIndex() - 1))
+}
+
+getNumHyperparams <- function(expObject){
+  return(length(expObject[[getFirstRunIndex()]]))
+}
+
+getNumCost <- function(expObject){
+  return(length(expObject[[getFirstRunIndex()]][[1]]) - (getFirstCostIndex() - 1))
+}
+
+
+getFirstRunIndex <- function(){
+  return(3)
+}
+
+getLastRunIndex <- function(expObject){
+  return(getNumRuns(expObject) + getFirstRunIndex() - 1)
+}
+
+getFirstCostIndex <- function(){
+  return(3)
+}
+
+getLastCostIndex <- function(expObject){
+  return(getNumCost(expObject) + getFirstCostIndex() - 1)
+}
+
+
+#===================================================================
+
+# get.cv_time <- function(expObj){
+#   return(expObj)
+# }
+
 #===================================================================
 
 
-writeToFile <- function(test, kernel){
-  fileName <- paste0(kernel, "_analysis.rds")
+writeToFile <- function(test, kernel, dataset){
+  fileName <- paste0(kernel, "_analysis_on_", dataset,".rds")
   
   message(paste0("Writing to ", fileName, " ..."))
   
