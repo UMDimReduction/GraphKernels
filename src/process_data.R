@@ -22,17 +22,23 @@ getAvgRuntime <- function(testObj){
 }
 
 
+# Need to add number of support vectors 
 getBestModel <- function(testObj){
   #best <- list("kernel" = testObj$kernel, "dataset" = testObj$dataset, 
    #            "hyperparameter" = NA, "cost" = NA, )
   bestCVerror <- 2
+  bestNumSV <- .Machine$integer.max
   location <- c(-1,-1,-1)
   
   for(i in getFirstRunIndex():getLastRunIndex(testObj)){
     for(j in 1:getNumHyperparams(testObj)){
       for(k in getFirstCostIndex():getLastCostIndex(testObj)){
-        if(testObj[[i]][[j]][[k]]$cv_error < bestCVerror){
-          bestCVerror <- testObj[[i]][[j]][[k]]$cv_error
+        currCVerror <- testObj[[i]][[j]][[k]]$cv_error
+        currNumSV <- testObj[[i]][[j]][[k]]$support_vectors
+        if(currCVerror < bestCVerror || 
+           (currCVerror == bestCVerror && currNumSV < bestNumSV)){
+          bestCVerror <- currCVerror
+          bestNumSV <- currNumSV
           location[1] <- i
           location[2] <- j
           location[3] <- k
