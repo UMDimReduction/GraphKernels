@@ -3,6 +3,8 @@ library(kernlab)
 library(hms) 
 library(graphkernels)
 
+#-------------------------------------------------------------------------------
+
 
 #===================================================================
 # Function for running SVM experiment with the given kernel on the given 
@@ -12,10 +14,9 @@ library(graphkernels)
 # dataset: list object representing the dataset
 # kernel: string containing key for kernel
 # cost: numeric vector containing costs for SVM
-# hyperparameter: numeric vector containing kernel hyperparameters. If none are to be used, pass c(NA)
-# runs: Number of times to repeat
+# hyperparameter: numeric vector containing kernel hyperparameters.
 #===================================================================
-runExperiment <- function(dataset, kernel, cost, hyperparameter, runs){
+runExperiment <- function(dataset, kernel, cost, hyperparameter = c(NA), runs){
 
   scale <- TRUE
 
@@ -24,11 +25,21 @@ runExperiment <- function(dataset, kernel, cost, hyperparameter, runs){
   message(paste0("Beginning ", kernel, " Kernel experiments..."))
 
   clockin <- as_hms(Sys.time())
-  experiment <- createExperimentObject(dataset = deparse(substitute(dataset)), kernel = kernel, cost = cost, hyperparameter = hyperparameter, runs = runs)
+  experiment <- createExperimentObject(dataset = deparse(substitute(dataset)), 
+                                       kernel = kernel, 
+                                       cost = cost, 
+                                       hyperparameter = hyperparameter, 
+                                       runs = runs)
 
   for(i in 1:runs){
     message(paste('Run #', i))
-    experiment[[i + getFirstRunIndex() - 1]] <- tuneHyperparameter(experiment = experiment[[i + getFirstRunIndex() - 1]], dataset = dataset, hyperparameter = hyperparameter, cost = cost, scale = scale, kernel = kernel)
+    j <- i + getFirstRunIndex() - 1
+    experiment[[j]] <- tuneHyperparameter(experiment = experiment[[j]], 
+                                          dataset = dataset, 
+                                          hyperparameter = hyperparameter, 
+                                          cost = cost, 
+                                          scale = scale, 
+                                          kernel = kernel)
   }
 
   message(paste("...done!"))
@@ -36,8 +47,8 @@ runExperiment <- function(dataset, kernel, cost, hyperparameter, runs){
   writeToFile(experiment, kernel, deparse(substitute(dataset)))
 
   clockout <- as_hms(Sys.time())
-  time <- clockout - clockin
-
+  time <- as_hms(clockout - clockin)
+  
   message(paste0("Total experiment time: ", time))
 }
 
@@ -135,6 +146,28 @@ createExperimentObject <- function(dataset, kernel, cost, hyperparameter, runs){
 }
 
 
+#===================================================================
+# Retrieve the cost, hyperparameter, and accuracy of a particular model
+# in an experiment
+# INPUTS:
+# expObject: The experiment object
+# location: numeric vector of the form (run, hyperparameter, cost)
+# Output: 
+# List vector with the information
+#===================================================================
+getModelInfo <- function(expObject, location){
+  run <- location[1]
+  hyp <- location[2]
+  cst <- location[3]
+  
+  info <- list("cost" = expObject[[run]][[hyp]][[cst]]$cost, 
+               "hyperparameter" = expObject[[run]][[hyp]]$hyperparameter, 
+               "accuracy" = (1 - expObject[[run]][[hyp]][[cst]]$training_error))
+  
+  return(info)
+}
+
+
 getNumRuns <- function(expObject){
   return(length(expObject) - (getFirstRunIndex() - 1))
 }
@@ -146,7 +179,6 @@ getNumHyperparams <- function(expObject){
 getNumCost <- function(expObject){
   return(length(expObject[[getFirstRunIndex()]][[1]]) - (getFirstCostIndex() - 1))
 }
-
 
 getFirstRunIndex <- function(){
   return(3)
@@ -164,12 +196,6 @@ getLastCostIndex <- function(expObject){
   return(getNumCost(expObject) + getFirstCostIndex() - 1)
 }
 
-
-#===================================================================
-
-# get.cv_time <- function(expObj){
-#   return(expObj)
-# }
 
 #===================================================================
 
