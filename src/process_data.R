@@ -4,9 +4,44 @@ for(file in files){
   testObj1 <- readRDS(file)
 }
 
+getAvgRuntime <- function(testObj){
+  time <- 0
+  for(i in getFirstRunIndex():getLastRunIndex(testObj)){
+    for(j in 1:getNumHyperparams(testObj)){
+      
+      time <- time + testObj[[i]][[j]]$kernel_compute_time
+      
+      for(k in getFirstCostIndex():getLastCostIndex(testObj)){
+        time <- time + testObj[[i]][[j]][[k]]$cv_time
+      }
+    }
+  }
+  
+  time <- time/getNumRuns(testObj)
+  return(time)
+}
+
 
 getBestModel <- function(testObj){
+  #best <- list("kernel" = testObj$kernel, "dataset" = testObj$dataset, 
+   #            "hyperparameter" = NA, "cost" = NA, )
+  bestCVerror <- 2
+  location <- c(-1,-1,-1)
   
+  for(i in getFirstRunIndex():getLastRunIndex(testObj)){
+    for(j in 1:getNumHyperparams(testObj)){
+      for(k in getFirstCostIndex():getLastCostIndex(testObj)){
+        if(testObj[[i]][[j]][[k]]$cv_error < bestCVerror){
+          bestCVerror <- testObj[[i]][[j]][[k]]$cv_error
+          location[1] <- i
+          location[2] <- j
+          location[3] <- k
+        }
+      }
+    }
+  }
+  
+  return(location)
 }
 
 
