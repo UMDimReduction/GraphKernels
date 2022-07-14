@@ -96,6 +96,7 @@ tuneSvmCost <- function(experiment, gram, target, cost){
     experiment[[j]]$cv_error <- currSvm@cross
     experiment[[j]]$training_error <- currSvm@error
     experiment[[j]]$cv_time <- (clockout - clockin)
+    experiment[[j]]$support_vectors <- currSvm@nSV
   }
 
   return(experiment)
@@ -113,7 +114,8 @@ createExperimentObject <- function(dataset, kernel, cost, hyperparameter, runs){
 
   # List structure for each model fitting with CV
   for(i in 1:length(cvRun)){
-    cvRun[[i]] <- list("cost" = NA, "cv_error" = NA, "training_error" = NA, "cv_time" = NA)
+    cvRun[[i]] <- list("cost" = NA, "cv_error" = NA, "training_error" = NA, 
+                       "cv_time" = NA, "support_vectors" = NA)
   }
 
   # List structure for each hyperparameter
