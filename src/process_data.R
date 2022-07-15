@@ -1,139 +1,107 @@
 
 library(hms) 
 
+source("./src/experiment_obj.R")
+
 files <- list.files(path = "./cache/", pattern = "*.rds", full.names = TRUE)
 for(file in files){
-  cat(paste0("processing ", basename(file), "...\n"))
-  exp_results <- paste(tools::file_path_sans_ext(basename(file)))
-  cat(paste0("exp_results=",exp_results))
-  temp <- readRDS(file)
-  assign(exp_results, temp)
-  
-  # Left off here. Doesn't work. readRDS is maybe the issue
-  printStats(exp_results)
-  
+  # not working. Not reading file properly
+  # cat(paste0("processing ", basename(file), "...\n"))
+  # #exp_results <- paste(tools::file_path_sans_ext(basename(file)))
+  # 
+  # # cat(paste0("exp_results=",exp_results))
+  # exp_results <- readRDS(file)
+  # #assign(exp_results, temp)
+  # computeStats(exp_results)
 }
 
 
-#===================================================================
-
-
-printStats <- function(testObj){
-  message(paste0("THIS: ", length(testObj)))
-  avgRuntime <- getAvgRuntime(testObj)
-  getAvgAccuracy(testObj)  
-  cat(paste0("Average runtime: ", as_hms(avgRuntime)))
-}
-
-
-#===================================================================
-
-
-getAvgRuntime <- function(testObj){
-  time <- 0
-  message(paste0("THIS: ", length(testObj)))
+computeStats <- function(experiment){
   
-  for(i in getFirstRunIndex():getLastRunIndex(testObj)){
-    for(j in 1:getNumHyperparams(testObj)){
-      
-      time <- time + testObj[[i]][[j]]$kernel_compute_time
-      
-      for(k in getFirstCostIndex():getLastCostIndex(testObj)){
-        time <- time + testObj[[i]][[j]][[k]]$cv_time
-      }
-    }
-  }
+  sigfigs <- 2
   
-  time <- time/getNumRuns(testObj)
-  return(time)
-}
-
-
-#====================================================================
-
-getAvgAccuracy <- function(testObj){
+  # ---------------------------
   
-  avgAccuracy <- c(rep(0, getNumRuns(testObj)))
+  runs <- getNumRuns(experiment)
+  bestModelLoc <- vector(mode = "list", length = runs)
   
-  j <- 1
-  for(i in getFirstRunIndex():getLastRunIndex(testObj)){
-    location <- getBestModel(testObj, i)
-    bestModelInfo <- getModelInfo(testObj, location)
-    avgAccuracy[j] <- bestModelInfo$accuracy
-    j <- j + 1
+  time <- c(rep(0, runs))
+  accuracy <- c(rep(0, runs))
+  hyperparams <- c(rep(0, runs))
+  costs <- c(rep(0, runs))
+  kernelTime <- c(rep(0, runs))
+  
+  for(i in 1:runs){
+    bestModelLoc[[i]] <- getBestModel(experiment, i)
     
+    r <- bestModelLoc[[i]][1]
+    h <- bestModelLoc[[i]][2]
+    c <- bestModelLoc[[i]][3]
+    
+    time[i] <- getCVtime(experiment, r, h, c)
+    accuracy[i] <- (1 - getCVerror(experiment, r, h, c))
+    hyperparams[i] <- getHyperparam(experiment, r, h)
+    costs[i] <- getCost(experiment, r, h, c)
+    kernelTime[i] <- getKernelComputeTime(experiment, r, h)
   }
-  meanAccuracy <- mean(avgAccuracy) * 100
-  accuracySD <- sd(avgAccuracy) * 100
   
+  cat(paste0("Kernel: ", experiment$kernel, "\nDataset:", experiment$dataset, "\n"))
+  cat(paste0("Best overall hyperparameter: ", mode(hyperparams), "\nBest overall cost: ", mode(costs), "\n\n"))
   
-  cat(paste0("Average accuracy: ", meanAccuracy, "\n"))
-  cat(paste0("Standard deviation: ", accuracySD, "\n"))
+  meanAccuracy <- mean(accuracy) * 100
+  accuracySD <- sd(accuracy) * 100
   
-  return(avgAccuracy)
+  cat(paste0("Average accuracy: ", round(meanAccuracy, sigfigs), "   SD: ", round(accuracySD, sigfigs), "\n\n"))
   
+  meanCVtime <- mean(time)
+  CVtimeSD <- sd(time)
+  
+  cat(paste0("Average cross-validation time: ", round(meanCVtime, sigfigs), "   SD: ", round(CVtimeSD, sigfigs), "\n\n"))
+  
+  meanKernelTime <- mean(kernelTime)
+  KernelTimeSD <- sd(kernelTime)
+  
+  cat(paste0("Average kernel computation time: ", round(meanKernelTime, sigfigs), "   SD: ", round(CVtimeSD, sigfigs), "\n\n"))
 }
 
 
 #====================================================================
 # Need to add number of support vectors 
-getBestModel <- function(testObj, i){
-  #best <- list("kernel" = testObj$kernel, "dataset" = testObj$dataset, 
-   #            "hyperparameter" = NA, "cost" = NA, )
+getBestModel <- function(experiments, run){
+
   bestCVerror <- 2
   bestNumSV <- .Machine$integer.max
   location <- c(-1,-1,-1)
   
-  for(j in 1:getNumHyperparams(testObj)){
-    for(k in getFirstCostIndex():getLastCostIndex(testObj)){
-      currCVerror <- testObj[[i]][[j]][[k]]$cv_error
-      currNumSV <- testObj[[i]][[j]][[k]]$support_vectors
-      #cat(paste0(i, " ", j," ", k, " accuracy: ", currCVerror, "\n"))
+  for(h in 1:getNumHyperparams(experiments)){
+    for(c in 1:getNumCost(experiments)){
+
+      currCVerror <- getCVerror(experiments, run, h, c)
+      currNumSV <- getSV(experiments, run, h, c)
+      
       if(currCVerror < bestCVerror || 
          ((currCVerror == bestCVerror) && (currNumSV < bestNumSV))){
-        #cat(paste("here\n"))
         bestCVerror <- currCVerror
         bestNumSV <- currNumSV
-        location[1] <- i
-        location[2] <- j
-        location[3] <- k
+        location[1] <- run
+        location[2] <- h
+        location[3] <- c
       }
     }
   }
-  # for(i in getFirstRunIndex():getLastRunIndex(testObj)){
-  #   for(j in 1:getNumHyperparams(testObj)){
-  #     for(k in getFirstCostIndex():getLastCostIndex(testObj)){
-  #       currCVerror <- testObj[[i]][[j]][[k]]$cv_error
-  #       currNumSV <- testObj[[i]][[j]][[k]]$support_vectors
-  #       if(currCVerror < bestCVerror || 
-  #          (currCVerror == bestCVerror && currNumSV < bestNumSV)){
-  #         bestCVerror <- currCVerror
-  #         bestNumSV <- currNumSV
-  #         location[1] <- i
-  #         location[2] <- j
-  #         location[3] <- k
-  #       }
-  #     }
-  #   }
-  # }
-  
+
   return(location)
 }
 
 
-
 #===================================================================
 
 
+mode <- function(vec) {
+  nums <- unique(vec)
+  return(nums[which.max(tabulate(match(vec, nums)))])
+}
+
+
 #===================================================================
 
-
-# printStats <- function(accuracy, runtime){
-#   message(paste('Total tuning runtime:', as_hms(runtime)))
-#   
-#   meanAccuracy <- mean(accuracy) * 100
-#   accuracySd <- sd(accuracy) * 100
-#   
-#   message(paste('Mean accuracy', round(meanAccuracy, 2), '%'))
-#   message(paste('Standard Deviation', round(accuracySd, 2)))
-# }
