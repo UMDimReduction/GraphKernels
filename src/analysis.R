@@ -9,16 +9,17 @@ source("./src/experiment_obj.R")
 
 
 #===================================================================
-# Function for running SVM experiment with the given kernel on the given 
-# dataset. Experiment runs 10-fold CV for each hyperparameter. Experiment 
-# is repeats n times, where n is runs
-# INPUTS:
-# dataset: list object representing the dataset
-# kernel: string containing key for kernel
-# cost: numeric vector containing costs for SVM
-# hyperparameter: numeric vector containing kernel hyperparameters.
+#' Performs complete SVM experiment with the given kernel on the given 
+#' data set. Experiment runs 10-fold CV for each hyperparameter. Experiment 
+#' is repeats n times, where n is the value runs.
+#'
+#' @param dataset list object representing the data set
+#' @param kernel string containing key for kernel
+#' @param cost numeric vector of costs
+#' @param hyperparameter numeric vector of hyperparameters
+#' @param runs number of times to repeat experiment
 #===================================================================
-runExperiment <- function(dataset, kernel, cost, hyperparameter = c(NA), runs){
+runExperiment <- function(dataset, kernel, cost = c(1), hyperparameter = c(NA), runs = c(1)){
 
   scale <- TRUE
 
@@ -27,61 +28,71 @@ runExperiment <- function(dataset, kernel, cost, hyperparameter = c(NA), runs){
   message(paste0("Beginning ", kernel, " Kernel experiments..."))
   message(paste0(Sys.time()))
 
-  clockin <- as_hms(Sys.time())
+  clockin    <- as_hms(Sys.time())
   experiment <- createExperimentObject(dataset = deparse(substitute(dataset)), 
                                        kernel = kernel, 
-                                       cost = cost, 
-                                       hyperparameter = hyperparameter, 
+                                       numCost = length(cost), 
+                                       numHyperparameter = length(hyperparameter), 
                                        runs = runs)
 
   for(i in 1:runs){
     message(paste('Run #', i, "of", runs))
-    #j <- i - 1 + getFirstRunIndex()
     experiment <- tuneHyperparameter(experiment = experiment, 
                                      currRun = i,
                                      dataset = dataset, 
                                      hyperparameter = hyperparameter, 
                                      cost = cost, 
-                                     scale = scale, 
-                                     kernel = kernel)
+                                     scale = scale)
   }
 
   message(paste("...done!"))
 
-  writeToFile(experiment)
+  writeToFile(experiment = experiment)
 
   clockout <- as_hms(Sys.time())
-  time <- as_hms(clockout - clockin)
+  time     <- as_hms(clockout - clockin)
   
   message(paste0("Total experiment time: ", time))
 }
 
 
 #===================================================================
-
-# Ask Max about where to place kernel computation
-
+#' Fits an SVM to the given data set for every combination of hyperparameter
+#' and costs.
+#' 
+#' @param experiment experiment object
+#' @param currRun the current run of the experiment
+#' @param dataset list object containing igraphs
+#' @param hyperparameter numeric vector of hyperparameters
+#' @param cost numeric vector of costs
+#' @param scale boolean value indicating if the Gram matrix is to be scaled
+#' @return the updated experiment object
 #===================================================================
-tuneHyperparameter <- function(experiment, currRun, dataset, hyperparameter, cost, scale, kernel){
+tuneHyperparameter <- function(experiment, currRun, dataset, hyperparameter, cost, scale){
 
-  target <- createTarget(dataset)
+  target <- createTarget(dataset = dataset)
   
   for(h in 1:length(hyperparameter)){
+    
     clockin <- as_hms(Sys.time())
-    gram <- computeKernel(dataset, kernel, hyperparameter[h])
+    gram    <- computeKernel(dataset = dataset, kernel = experiment$kernel, 
+                             parameter = hyperparameter[h])
+    
     if(scale){
-      gram <- scaleToUnitInterval(gram)
+      gram <- scaleToUnitInterval(matrix = gram)
     }
     clockout <- as_hms(Sys.time())
-    currKernelComputeTime <- clockout - clockin
     
-    # change this after changing tuneSvmCost
-    #experiment[[h]] <- tuneSvmCost(experiment[[h]], gram, target, cost)
-    experiment <- tuneSvmCost(experiment, gram, target, cost, currRun, h)
-    experiment <- setHyperparam(experiment, hyperparameter[h], currRun, h)
-    experiment <- setKernelComputeTime(experiment, currKernelComputeTime, currRun, h)
+    currKernelComputeTime <- as_hms(clockout - clockin)
     
-    #experiment[[h]]$kernel_compute_time <- currKernelComputeTime
+    experiment <- tuneSvmCost(experiment = experiment, gram = gram, 
+                              target = target, cost = cost, currRun = currRun, 
+                              hypLoc = h)
+    experiment <- setHyperparam(expObj = experiment, hyperparam = hyperparameter[h], 
+                                runLoc = currRun, hypLoc = h)
+    experiment <- setKernelComputeTime(expObj = experiment, 
+                                       newTime = currKernelComputeTime, 
+                                       runLoc = currRun, hypLoc = h)
   }
 
   return(experiment)
@@ -89,13 +100,14 @@ tuneHyperparameter <- function(experiment, currRun, dataset, hyperparameter, cos
 
 
 #===================================================================
-# Tunes the cost parameter of the ksvm function from the values in the given
-# cost vector. SVM is learned with 10-fold CV
-# Input:
-# - gram is the precomputed Gram matrix of a kernel with class type matrixKernel
-# - target is the target vector containing class information stored as factors
-# - cost is a numeric vector containing the desired cost values to tune
-# Output: A list containing statistics for each svm computed
+#' Tunes the cost parameter of the ksvm function from the values in the given
+#' cost vector. SVM is learned with 10-fold CV
+#' 
+#' @param experiment experiment object
+#' @param gram Gram matrix of the kernel
+#' @param target target vector
+#' @param cost is a numeric vector containing the desired cost values to tune
+#' @return A list containing statistics for each svm computed
 #===================================================================
 tuneSvmCost <- function(experiment, gram, target, cost, currRun, hypLoc){
 
@@ -108,178 +120,37 @@ tuneSvmCost <- function(experiment, gram, target, cost, currRun, hypLoc){
   for(i in 1:length(cost)){
     cat(paste0("cost = ", cost[i], "\n"))
     
-    clockin <- as_hms(Sys.time())
-    currSvm <- ksvm(gram, target, C = cost[i], cross = folds)
+    clockin  <- as_hms(Sys.time())
+    currSvm  <- ksvm(gram, target, C = cost[i], cross = folds)
     clockout <- as_hms(Sys.time())
-
-    #j <- i - 1 + getFirstCostIndex()
     
-    experiment <- setCost(experiment, cost[i], currRun, hypLoc, i)
-    experiment <- setCVerror(experiment, currSvm@cross, currRun, hypLoc, i)
-    experiment <- setTrainingError(experiment, currSvm@error, currRun, hypLoc, i)
-    experiment <- setCVtime(experiment, (clockout - clockin), currRun, hypLoc, i)
-    experiment <- setSV(experiment, currSvm@nSV, currRun, hypLoc, i)
-
-    # experiment[[j]]$cost <- cost[i]
-    # experiment[[j]]$cv_error <- currSvm@cross
-    # experiment[[j]]$training_error <- currSvm@error
-    # experiment[[j]]$cv_time <- (clockout - clockin)
-    # experiment[[j]]$support_vectors <- currSvm@nSV
+    experiment <- setCost(expObj = experiment, newCost = cost[i], 
+                          runLoc = currRun, hypLoc = hypLoc, cstLoc = i)
+    experiment <- setCVerror(expObj = experiment, newCVerror = currSvm@cross, 
+                             runLoc = currRun, hypLoc = hypLoc, cstLoc = i)
+    experiment <- setTrainingError(expObj = experiment, 
+                                   newTrainingError = currSvm@error, 
+                                   runLoc = currRun, hypLoc = hypLoc, cstLoc = i)
+    experiment <- setCVtime(expObj = experiment, 
+                            newCVtime = as_hms(clockout - clockin),
+                            runLoc = currRun, hypLoc = hypLoc, cstLoc = i)
+    experiment <- setSV(expObj = experiment, newSV =  currSvm@nSV, 
+                        runLoc = currRun, hypLoc = hypLoc, cstLoc = i)
   }
 
   return(experiment)
 }
 
 
-# #===================================================================
-# 
-# 
-# createExperimentObject <- function(datasetName, kernel, cost, hyperparameter, runs){
-# 
-#   cvRun     <- vector(mode = "list", length = length(cost))
-#   hyperRun  <- vector(mode = "list", length = length(hyperparameter))
-#   repeatRun <- vector(mode = "list", length = runs)
-# 
-#   # List structure for each model fitting with CV
-#   for(i in 1:length(cvRun)){
-#     cvRun[[i]] <- list("cost" = NA, "cv_error" = NA, "training_error" = NA, 
-#                        "cv_time" = NA, "support_vectors" = NA)
-#   }
-#   
-#   costList <- list("costs" = cvRun)
-# 
-#   # List structure for each hyperparameter
-#   for(i in 1:length(hyperRun)){
-#     hyperRun[[i]] <- append(list("hyperparameter" = NA, "kernel_compute_time" = NA), costList)
-#   }
-#   
-#   # List structure for each repetition of the experiment
-#   for(i in 1:length(repeatRun)){
-#     repeatRun[[i]] <- hyperRun
-#   }
-#   
-#   runList <- list("runs" = repeatRun)
-# 
-#   testObj <- append(list("kernel" = kernel, "dataset" = datasetName), runList)
-#   class(testObj) <- "experiment"
-# 
-#   return(testObj)
-# }
-# 
-# 
-# #===================================================================
-# # Retrieve the cost, hyperparameter, and accuracy of a particular model
-# # in an experiment
-# # INPUTS:
-# # expObject: The experiment object
-# # location: numeric vector of the form (run, hyperparameter, cost)
-# # Output: 
-# # List vector with the information
-# #===================================================================
-# getModelInfo <- function(expObj, location){
-#   run <- location[1]
-#   hyp <- location[2]
-#   cst <- location[3]
-#   
-#   info <- list("cost" = getCost(expObj, run, hyp, cst), 
-#                "hyperparameter" = getHyperparam(expObj, run, hyp),
-#                "accuracy" = (1 - getTrainingError(expObj, run, hyp, cst)))
-#   
-#   return(info)
-# }
-# 
-# 
-# setHyperparam <- function(expObj, hyperparam, runLoc, hypLoc){
-#   expObj$runs[[runLoc]][[hypLoc]]$hyperparameter <- hyperparam
-#   return(expObj)
-# }
-# 
-# getHyperparam <- function(expObj, runLoc, hypLoc){
-#   return(expObj$runs[[runLoc]][[hypLoc]]$hyperparameter)
-# }
-# 
-# getNumRuns <- function(expObj){
-#   return(length(expObj$runs))
-# }
-# 
-# getNumHyperparams <- function(expObj){
-#   return(length(expObj$runs[[1]]))
-# }
-# 
-# getNumCost <- function(expObj){
-#   return(length(expObj$runs[[1]][[1]]$costs))
-# }
-# 
-# getCost <- function(expObj, runLoc, hypLoc, cstLoc){
-#   return(expObj$runs[[runLoc]][[hypLoc]]$costs[[cstLoc]]$cost)
-# }
-# 
-# setCost <- function(expObj, newCost, runLoc, hypLoc, cstLoc){
-#   expObj$runs[[runLoc]][[hypLoc]]$costs[[cstLoc]]$cost <- newCost
-#   return(expObj)
-# }
-# 
-# getCVerror <- function(expObj, runLoc, hypLoc, cstLoc){
-#   return(expObj$runs[[runLoc]][[hypLoc]]$costs[[cstLoc]]$cv_error)
-# }
-# 
-# setCVerror <- function(expObj, newCVerror, runLoc, hypLoc, cstLoc){
-#   expObj$runs[[runLoc]][[hypLoc]]$costs[[cstLoc]]$cv_error <- newCVerror
-#   return(expObj)
-# }
-# 
-# getTrainingError <- function(expObj, runLoc, hypLoc, cstLoc){
-#   return(expObj$runs[[runLoc]][[hypLoc]]$costs[[cstLoc]]$training_error)
-# }
-# 
-# setTrainingError <- function(expObj, newTrainingError, runLoc, hypLoc, cstLoc){
-#   expObj$runs[[runLoc]][[hypLoc]]$costs[[cstLoc]]$training_error <- newTrainingError
-#   return(expObj)
-# }
-# 
-# getCVtime <- function(expObj, runLoc, hypLoc, cstLoc){
-#   return(expObj$runs[[runLoc]][[hypLoc]]$costs[[cstLoc]]$cv_time)
-# }
-# 
-# setCVtime <- function(expObj, newCVtime, runLoc, hypLoc, cstLoc){
-#   expObj$runs[[runLoc]][[hypLoc]]$costs[[cstLoc]]$cv_time <- newCVtime
-#   return(expObj)
-# }
-# 
-# getSV <- function(expObj, runLoc, hypLoc, cstLoc){
-#   return(expObj$runs[[runLoc]][[hypLoc]]$costs[[cstLoc]]$support_vectors)
-# }
-# 
-# setSV <- function(expObj, newSV, runLoc, hypLoc, cstLoc){
-#   expObj$runs[[runLoc]][[hypLoc]]$costs[[cstLoc]]$support_vectors <- newSV
-#   return(expObj)
-# }
-# 
-# getKernelComputeTime <- function(expObj, runLoc, hypLoc){
-#   return(expObj$runs[[runLoc]][[hypLoc]]$kernel_compute_time)
-# }
-# 
-# setKernelComputeTime <- function(expObj, newTime, runLoc, hypLoc){
-#   expObj$runs[[runLoc]][[hypLoc]]$kernel_compute_time <- newTime
-#   return(expObj)
-# }
-# 
-# getDataset <- function(expObj){
-#   return(expObj$dataset)
-# }
-# 
-# getKernel <- function(expObj){
-#   return(expObj$kernel)
-# }
-
-
 #===================================================================
-
-
+#' writes experiment objecy to an .rds file in the cache directory
+#' 
+#' @param experiment experiment object
+#===================================================================
 writeToFile <- function(experiment){
   datasetName <- getDataset(experiment)
-  kernelType <- getKernel(experiment)
-  fileName <- paste0(kernelType, "_analysis_on_", datasetName,".rds")
+  kernelType  <- getKernel(experiment)
+  fileName    <- paste0(kernelType, "_analysis_on_", datasetName,".rds")
   
   message(paste0("Writing to ", fileName, " ..."))
   
@@ -289,9 +160,14 @@ writeToFile <- function(experiment){
 
 
 #===================================================================
-
-
-computeKernel <- function(dataset, kernel, parameter){
+#' Computes the Gram matrix of a kernel on a data set
+#' 
+#' @param dataset list object containing igraphs
+#' @param kernel string key for kernel type
+#' @param parameter the hyperparameter of the corresponding kernel
+#' @return the Gram matrix of the kernel on the given data set
+#===================================================================
+computeKernel <- function(dataset, kernel, parameter = NA){
   K <- NULL
   
   if(kernel == "VH"){
@@ -333,10 +209,17 @@ computeKernel <- function(dataset, kernel, parameter){
 
 
 #===================================================================
-
-
+#' generates a factor vector containing the classification information
+#' for each graph in the given data set. The ith element in the factor 
+#' vector corresponds to the ith element in the data set as a list.
+#' 
+#' @param dataset list object containing igraphs
+#' @return target vector
+#===================================================================
 createTarget <- function(dataset){
+  
   target <- c(rep(0, length(dataset)))
+  
   for(i in 1:length(dataset)){
     target[i] <- as.numeric(graph_attr(dataset[[i]]))
   }
@@ -347,12 +230,14 @@ createTarget <- function(dataset){
 
 
 #===================================================================
-
-
-# computes the Gram matrix of the (cosine) normalized kernel.
-# Input: the Gram matrix of the original kernel
-# Output: the corresponding normalized kernel Gram matrix if the given matrix is symmetric, NULL otherwise
+#' computes the Gram matrix of the (cosine) normalized kernel.
+#' 
+#' @param gram gram matrix
+#' @return the corresponding normalized kernel Gram matrix if the given matrix 
+#          is symmetric, NULL otherwise
+#===================================================================
 normalizeKernel <- function(gram){
+  
   normalized <- matrix(0, nrow = nrow(gram), ncol = ncol(gram))
   
   if(isSymmetric(gram)){
@@ -382,11 +267,11 @@ normalizeKernel <- function(gram){
 
 
 #===================================================================
-
-
-# Scales the entries of the given symmetric matrix into the unit interval [0,1]
-# input: real-values symmetric matrix
-# output: the linearly scaled matrix
+#' Scales the entries of the given symmetric matrix into the unit interval [0,1].
+#'
+#' @param real-values symmetric matrix
+#' @return the scaled matrix
+#===================================================================
 scaleToUnitInterval <- function(matrix){
   
   scaledMatrix <- NULL
@@ -398,7 +283,7 @@ scaleToUnitInterval <- function(matrix){
     m <- 1/(matrixMax - matrixMin)
     b <- -(matrixMin)/(matrixMax - matrixMin)
     
-    scaledMatrix <- scaleSymMatrix(matrix, m , b)  
+    scaledMatrix <- scaleSymMatrix(matrix = matrix, m = m , b = b)  
   }
   
   return(scaledMatrix)
@@ -406,11 +291,11 @@ scaleToUnitInterval <- function(matrix){
 
 
 #===================================================================
-
-
-# Scales the entries of the given symmetric matrix into the 1-unit ball [-1,1]
-# input: real-values symmetric matrix
-# output: the linearly scaled matrix
+#' Scales the entries of the given symmetric matrix into the 1-unit ball [-1,1].
+#' 
+#' @param real-values symmetric matrix
+#' @return the scaled matrix
+#===================================================================
 scaleToUnitBall <- function(matrix){
   
   scaledMatrix <- NULL
@@ -422,7 +307,7 @@ scaleToUnitBall <- function(matrix){
     m <- 2/(matrixMax - matrixMin)
     b <- -(matrixMax + matrixMin)/(matrixMax - matrixMin)
     
-    scaledMatrix <- scaleSymMatrix(matrix, m , b)  
+    scaledMatrix <- scaleSymMatrix(matrix = matrix, m = m , b = b)  
   }
   
   return(scaledMatrix)
@@ -430,21 +315,22 @@ scaleToUnitBall <- function(matrix){
 
 
 #===================================================================
-# Scales entries of a given symmetic matrix linearly
-# Inputs: 
-# - m is the leading coefficient, b is the constant of the linear equation
-# output: 
-# - the linearly scaled matrix
+#' Scales entries of a given symmetric matrix linearly.
+#' 
+#' @param m leading coefficient
+#' @param b constant of the linear equation
+#' @return the scaled matrix
 #===================================================================
 scaleSymMatrix <- function(matrix, m, b){
   
   scaledMatrix <- matrix
+  
   r <- 1
   
   while(r < nrow(matrix)){
     c <- r + 1
     while(c <= ncol(matrix)){
-      scaledMatrix[r,c] <- linearEvaluation(matrix[r,c], m, b)
+      scaledMatrix[r,c] <- linearEvaluation(x = matrix[r,c], m = m, b = b)
       scaledMatrix[c,r] <- scaledMatrix[r,c]
       c <- c + 1
     }
@@ -452,7 +338,7 @@ scaleSymMatrix <- function(matrix, m, b){
   }
   
   for(i in 1:nrow(matrix)){
-    scaledMatrix[i,i] <- linearEvaluation(matrix[i,i], m, b)
+    scaledMatrix[i,i] <- linearEvaluation(x = matrix[i,i], m = m, b = b)
   }
   
   return(scaledMatrix)
@@ -460,19 +346,20 @@ scaleSymMatrix <- function(matrix, m, b){
 
 
 #===================================================================
-# Evaluation map of the function f(x) = mx+b
-# Inputs: 
-# - x is the point at which to evaluate, m and b are the parameters of 
-# the linear function
-# Output: 
-# - The value of f at input x
+#' Evaluation map of the function f(x) = mx+b
+#' 
+#' @param x point at which to evaluate, 
+#' @param m slope
+#' @param b constant
+#' @return The value of f at input x
 #===================================================================
 linearEvaluation <- function(x, m, b){
+  
   scaled <- m*x + b
+  
   return(scaled)
 }
 
 
-#===================================================================
-
+#-------------------------------------------------------------------------------
 
