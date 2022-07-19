@@ -1,9 +1,8 @@
 
 library(hms)
-library(ggplot2)
+#library(ggplot2)
 
 source("./src/experiment_obj.R")
-
 
 #-------------------------------------------------------------------------------
 
@@ -60,7 +59,7 @@ processAll <- function(){
 #===================================================================
 computeStats <- function(experiment){
   
-  sigfigs <- 2
+  #sigfigs <- 2
   
   # ---------------------------
   

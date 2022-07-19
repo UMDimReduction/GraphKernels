@@ -9,6 +9,9 @@ library(igraph)
 #' indicating the class of each .graphml object, and a .list file containing
 #' names of the .graphml objects. All files must have the same name.
 #' 
+#' Function adapted from read.mutag function in graph-kernels package
+#' by Mahito Sugiyama
+#' 
 #' @param name name of data set 
 #===================================================================
 read.dataset <- function(name){

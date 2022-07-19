@@ -1,5 +1,6 @@
 #-------------------------------------------------------------------------------
 
+# Experiment Object
 
 #===================================================================
 #'  Creates an object comprised of compositions of lists, that holds
@@ -13,29 +14,9 @@
 #'  @param runs the number of reptitions of the experiment
 #'  @return experiment object
 #===================================================================
-createExperimentObject <- function(datasetName, kernel, numCost, numHyperparameter, runs){
+createExperimentObject <- function(datasetName, kernel){
   
-  cvRun     <- vector(mode = "list", length = numCost)
-  hyperRun  <- vector(mode = "list", length = numHyperparameter)
-  repeatRun <- vector(mode = "list", length = runs)
-  
-  # List structure for each model fitting with CV
-  for(i in 1:length(cvRun)){
-    cvRun[[i]] <- list("cost" = NA, "cv_error" = NA, "training_error" = NA, 
-                       "cv_time" = NA, "support_vectors" = NA)
-  }
-  
-  costList <- list("costs" = cvRun)
-  
-  # List structure for each hyperparameter
-  for(i in 1:length(hyperRun)){
-    hyperRun[[i]] <- append(list("hyperparameter" = NA, "kernel_compute_time" = NA), costList)
-  }
-  
-  # List structure for each repetition of the experiment
-  for(i in 1:length(repeatRun)){
-    repeatRun[[i]] <- hyperRun
-  }
+  repeatRun <- vector(mode = "list", length = 0)
   
   runList <- list("runs" = repeatRun)
   
@@ -157,4 +138,86 @@ setKernelComputeTime <- function(expObj, newTime, runLoc, hypLoc){
 
 
 #-------------------------------------------------------------------------------
+
+# Run object
+
+createRun <- function(numHyperparameter, numCost){
+  cvRun     <- vector(mode = "list", length = numCost)
+  hyperRun  <- vector(mode = "list", length = numHyperparameter)
+  
+  # List structure for each model fitting with CV
+  for(i in 1:length(cvRun)){
+    cvRun[[i]] <- list("cost" = NA, "cv_error" = NA, "training_error" = NA,
+                       "cv_time" = NA, "support_vectors" = NA)
+  }
+  
+  costList <- list("costs" = cvRun)
+  
+  # List structure for each hyperparameter
+  for(i in 1:length(hyperRun)){
+    hyperRun[[i]] <- append(list("hyperparameter" = NA, "kernel_compute_time" = NA), costList)
+  }
+  
+  return(hyperRun)
+}
+
+
+addRun <- function(experiment, run){
+  index <- length(experiment$runs) + 1
+  experiment$runs[[index]] <- run
+  return(experiment)
+}
+
+#--------------------- Mutators for Run
+
+
+setRunHyperparam <- function(runObj, hyperparam, hypLoc){
+  runObj[[hypLoc]]$hyperparameter <- hyperparam
+  return(runObj)
+}
+
+
+setRunCost <- function(runObj, newCost, hypLoc, cstLoc){
+  runObj[[hypLoc]]$costs[[cstLoc]]$cost <- newCost
+  return(runObj)
+}
+
+
+setRunCVerror <- function(runObj, newCVerror, hypLoc, cstLoc){
+  runObj[[hypLoc]]$costs[[cstLoc]]$cv_error <- newCVerror
+  return(runObj)
+}
+
+
+setRunTrainingError <- function(runObj, newTrainingError, hypLoc, cstLoc){
+  runObj[[hypLoc]]$costs[[cstLoc]]$training_error <- newTrainingError
+  return(runObj)
+}
+
+
+setRunCVtime <- function(runObj, newCVtime, hypLoc, cstLoc){
+  runObj[[hypLoc]]$costs[[cstLoc]]$cv_time <- newCVtime
+  return(runObj)
+}
+
+
+setRunSV <- function(runObj, newSV, hypLoc, cstLoc){
+  runObj[[hypLoc]]$costs[[cstLoc]]$support_vectors <- newSV
+  return(runObj)
+}
+
+
+setRunKernelComputeTime <- function(runObj, newTime, hypLoc){
+  runObj[[hypLoc]]$kernel_compute_time <- newTime
+  return(runObj)
+}
+
+
+
+
+
+
+
+
+
 
