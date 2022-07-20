@@ -1,8 +1,9 @@
 
 library(hms)
-#library(ggplot2)
+library(ggplot2)
 
 source("./src/experiment_obj.R")
+
 
 #-------------------------------------------------------------------------------
 
@@ -20,48 +21,114 @@ processAll <- function(){
     
     message(paste0("processing ", basename(file), "...\n"))
     exp_results <- readRDS(file)
-    
-    currDf <- computeStats(exp_results)
-    dset <- exp_results$dataset
 
-    ls <- computeStats(exp_results)
-    dset <- ls$Dataset
+    stats <- computeStats(exp_results)
+    dset <- stats$Dataset
     
     if(!(dset %in% names(datasetExp))){
       datasetExp[[dset]] <- vector(mode = "list", length = 0)
     }
   
-    datasetExp[[dset]][[length(datasetExp[[dset]]) + 1]] <- ls
+    datasetExp[[dset]][[length(datasetExp[[dset]]) + 1]] <- stats
   }
 
   for(i in 1:length(datasetExp)){
     
     n  <- length(datasetExp[[i]])
-    df <- data.frame("kernel" = c(rep("", n)), "accuracy" = c(rep(0, n)))
+
+    df <- data.frame("Kernel" = c(rep("", n)), "Accuracy" = c(rep(0, n)), 
+                     "sd" = c(rep(0,n)), "ComputeTime" = c(rep(0,n)), 
+                     "sd.time" = c(rep(0,n)))
     
     for(j in 1:length(datasetExp[[i]])){
       
       df[j, 1] <- datasetExp[[i]][[j]]$Kernel
       df[j, 2] <- datasetExp[[i]][[j]]$AvgAccuracy
+      df[j, 3] <- datasetExp[[i]][[j]]$SdAccuracy
+      df[j, 4] <- datasetExp[[i]][[j]]$AvgKernelTime
+      df[j, 5] <- datasetExp[[i]][[j]]$SDKernelTime
+    }
+
+    # Kernel accuracy (barplot)
+    
+    pdf(file = paste0("./figures/", datasetExp[[i]][[1]]$Dataset, "_accuracy.pdf"))
+    print(ggplot(df) +
+      ggtitle(paste0(toupper(datasetExp[[i]][[1]]$Dataset), " accuracy comparison")) +
+      geom_bar(aes(x = Kernel, y = Accuracy), stat = "identity", fill = "deepskyblue4", alpha = 0.5) +
+      geom_errorbar(aes(x = Kernel, ymin = Accuracy - sd, ymax = Accuracy + sd), width = 0.4, colour = "black", alpha = 0.9, size = 1.3) +
+      ylim(0,100))
+    dev.off()
+    
+    # Kernel compute time (barplot) 
+    gg.time <- ggplot(df) +
+      ggtitle(paste0(toupper(datasetExp[[i]][[1]]$Dataset), " kernel computation time comparison")) +
+      geom_bar(aes(x = Kernel, y = ComputeTime), stat = "identity", fill = "deepskyblue4", alpha = 0.5) +
+      geom_errorbar(aes(x = Kernel, ymin = ComputeTime - sd.time, ymax = ComputeTime + sd.time), width = 0.4, colour = "black", alpha = 0.9, size = 1.3) +
+      ylim(0,NA) +
+      xlab("Kernel") +
+      ylab("Computation Time (seconds)")
+    
+    
+    # Kernel compute time (points and lines)
+    point <- ggplot(df, aes(x = Kernel, y = ComputeTime, group = 1)) + 
+      ggtitle(paste0(toupper(datasetExp[[i]][[1]]$Dataset), " average kernel computation time"))+
+      geom_line(color = "black", size = 1) +
+      geom_point(color = "red", size = 3) +
+      ylim(0,NA) +
+      xlab("Kernel") +
+      ylab("Computation Time (seconds)")
+    
+    
+    
+    #Box plot setup
+    m <- length(datasetExp[[i]]) * datasetExp[[i]][[j]]$runs
+    computeTImedf2 <- data.frame("Kernel" = c(rep("", m)), "ComputeTime" = c(rep(0,m)))
+    a <- 1
+    for(j in 1:length(datasetExp[[i]])){
+      times <- datasetExp[[i]][[j]]$KernelTimes
+      
+      for(k in 1:length(times)){
+        df2[a, 1] <- datasetExp[[i]][[j]]$Kernel
+        df2[a, 2] <- times[k] 
+        a <- a + 1
+      }
     }
     
-    barplot(df$accuracy, names.arg = df$kernel, ylim = c(0,100))
+    
+    # Boxplot code for kernel compute time
+    box <- ggplot(df2, aes(x = Kernel, y = ComputeTime)) + 
+      geom_boxplot(outlier.colour = "black", outlier.shape = 16,
+                                   outlier.size = 2, notch = FALSE) +
+      geom_jitter(shape=16, position=position_jitter(0.2))
+
+    # write gg to file
   }
   
-  return(datasetExp)
+  # Make table of best parameters
+  
+  
+  #return(df2)
+  #return(gg.time)
+  return(box)
+  #return(point)
+}
+
+
+writeToFigures <- function(fig){
+  
 }
 
 
 #===================================================================
-#' Calculates statistics on the given experiment object
+#' Calculates statistics on the given experiment object. Classification 
+#' accuracy is averaged over the best performing model from each repetition
+#' of the experiment. Kernel computation time is averaged over each 
+#' hyperparameter and repetition of the experiment
 #' 
 #' @param experiment experiment object
+#' @return list of statistics
 #===================================================================
 computeStats <- function(experiment){
-  
-  #sigfigs <- 2
-  
-  # ---------------------------
   
   runs         <- getNumRuns(experiment)
   bestModelLoc <- vector(mode = "list", length = runs)
@@ -70,7 +137,7 @@ computeStats <- function(experiment){
   accuracy    <- c(rep(0, runs))
   hyperparams <- c(rep(0, runs))
   costs       <- c(rep(0, runs))
-  kernelTime  <- c(rep(0, runs))
+  #kernelTime  <- c(rep(0, runs))
   
   for(i in 1:runs){
     bestModelLoc[[i]] <- getBestModel(experiment, i)
@@ -83,36 +150,49 @@ computeStats <- function(experiment){
     accuracy[i]    <- (1 - getCVerror(experiment, r, h, c))
     hyperparams[i] <- getHyperparam(experiment, r, h)
     costs[i]       <- getCost(experiment, r, h, c)
-    kernelTime[i]  <- getKernelComputeTime(experiment, r, h)
+    #kernelTime[i]  <- getKernelComputeTime(experiment, r, h)
   }
-  
-  # cat(paste0("Kernel: ", experiment$kernel, "\nDataset: ", experiment$dataset, "\n"))
-  # cat(paste0("Best overall hyperparameter: ", mode(hyperparams), 
-  #            "\nBest overall cost: ", mode(costs), "\n\n"))
   
   meanAccuracy <- mean(accuracy) * 100
   accuracySD   <- sd(accuracy) * 100
   
-  # cat(paste0("Average accuracy: ", round(meanAccuracy, sigfigs), 
-  #            ", SD: ", round(accuracySD, sigfigs), "\n\n"))
-  
   meanCVtime <- mean(time)
   CVtimeSD   <- sd(time)
   
-  # cat(paste0("Average cross-validation time: ", round(meanCVtime, sigfigs),
-  #            ", SD: ", round(CVtimeSD, sigfigs), "\n\n"))
+  # meanKernelTime <- mean(kernelTime)
+  # KernelTimeSD   <- sd(kernelTime)
+  kernelTimes <- getKernelTimes(experiment)
+  meanKernelTime <- mean(kernelTimes)
+  KernelTimeSD   <- sd(kernelTimes)
   
-  meanKernelTime <- mean(kernelTime)
-  KernelTimeSD   <- sd(kernelTime)
+  stats <- list("Dataset" = experiment$dataset, "Kernel" = experiment$kernel, 
+                "runs" = length(experiment$runs),
+                "AvgAccuracy" = meanAccuracy, "SdAccuracy" = accuracySD,
+                "AvgCVTime" = meanCVtime, "SdCVTime" = CVtimeSD, 
+                "AvgKernelTime" = meanKernelTime, "SDKernelTime" = KernelTimeSD,
+                "KernelTimes" = kernelTimes,
+                "BestCost" = mode(costs), "BestHyperparam" = mode(hyperparams))
   
-  # cat(paste0("Average kernel computation time: ", round(meanKernelTime, sigfigs), 
-  #            ", SD: ", round(CVtimeSD, sigfigs), "\n\n"))
+  return(stats)
+}
+
+
+#===================================================================
+#' Gets all kernel compute times from the given experiment object.
+#' 
+#' @param experiment experiment object
+#===================================================================
+getKernelTimes <- function(experiment){
+  kernelTimes <- c(rep(0, getNumRuns(experiment) * getNumHyperparams(experiment)))
+  i <- 1
   
-  ls <- list("Dataset" = experiment$dataset, "Kernel" = experiment$kernel, 
-             "AvgAccuracy" = meanAccuracy, "SdAccuracy" = accuracySD,
-             "AvgTime" = meanCVtime, "SdTime" = CVtimeSD)
-  
-  return(ls)
+  for(r in 1:getNumRuns(experiment)){
+    for(h in 1:getNumHyperparams(experiment)){
+      kernelTimes[i] <- getKernelComputeTime(experiment, r, h)
+      i <- i + 1
+    }
+  }
+  return(kernelTimes)
 }
 
 
@@ -164,4 +244,18 @@ mode <- function(vec) {
 
 
 #-------------------------------------------------------------------------------
+
+# Old code
+#sigfigs <- 2
+
+# ---------------------------
+# cat(paste0("Kernel: ", experiment$kernel, "\nDataset: ", experiment$dataset, "\n"))
+# cat(paste0("Best overall hyperparameter: ", mode(hyperparams), 
+#            "\nBest overall cost: ", mode(costs), "\n\n"))
+# cat(paste0("Average accuracy: ", round(meanAccuracy, sigfigs), 
+#            ", SD: ", round(accuracySD, sigfigs), "\n\n"))
+# cat(paste0("Average cross-validation time: ", round(meanCVtime, sigfigs),
+#            ", SD: ", round(CVtimeSD, sigfigs), "\n\n"))
+# cat(paste0("Average kernel computation time: ", round(meanKernelTime, sigfigs), 
+#            ", SD: ", round(CVtimeSD, sigfigs), "\n\n"))
 
