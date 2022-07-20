@@ -8,6 +8,7 @@ plan(multisession)
 
 source("./src/experiment_obj.R")
 
+
 #-------------------------------------------------------------------------------
 
 
@@ -18,15 +19,14 @@ source("./src/experiment_obj.R")
 #'
 #' @param dataset list object representing the data set
 #' @param kernel string containing key for kernel
-#' @param cost numeric vector of costs
-#' @param hyperparameter numeric vector of hyperparameters
 #' @param runs number of times to repeat experiment
+#' @param hyperparameter numeric vector of hyperparameters
+#' @param cost numeric vector of costs
+#' @param parallel logical operator controlling the use of parallel computation
+#' @param scale logical operator controlling if entries of Gram matrices 
+#'              are scaled to [0,1]
 #===================================================================
-runExperiment <- function(dataset, kernel, cost = c(1), hyperparameter = c(NA), runs = 1){
-  
-  scale <- TRUE
-  
-  #-----------------------
+runExperiment <- function(dataset, kernel, runs = 1, hyperparameter = c(NA), cost = c(1), parallel = TRUE, scale = TRUE){
   
   message(paste0("Beginning ", kernel, " Kernel experiments..."))
   message(paste0(Sys.time()))
@@ -36,14 +36,29 @@ runExperiment <- function(dataset, kernel, cost = c(1), hyperparameter = c(NA), 
                                        kernel = kernel)
   
   target <- createTarget(dataset = dataset)
-  runList <- future_mapply(tuneHyperparameter, currRun = 1:runs,
-                              MoreArgs = list(experiment = experiment, 
-                                              target = target, 
-                                              dataset = dataset, 
-                                              hyperparameter = hyperparameter, 
-                                              cost = cost, 
-                                              scale = scale),
-                              future.seed = TRUE)
+  
+  if(parallel){
+    runList <- future_mapply(tuneHyperparameter, currRun = 1:runs,
+                             MoreArgs = list(experiment = experiment, 
+                                             target = target, 
+                                             dataset = dataset, 
+                                             hyperparameter = hyperparameter, 
+                                             cost = cost, 
+                                             scale = scale),
+                             future.seed = TRUE)  
+  }
+  else{
+    runList <- vector(mode = "list", length = runs)
+    for(i in 1:runs){
+      runList[i] <- tuneHyperparameter(experiment = experiment, 
+                         target = target,
+                         currRun = i,
+                         dataset = dataset, 
+                         hyperparameter = hyperparameter, 
+                         cost = cost, 
+                         scale = scale)
+    }
+  }
   
   for(i in 1:runs){
     experiment <- addRun(experiment, runList[i])
@@ -82,6 +97,7 @@ tuneHyperparameter <- function(experiment, target, currRun, dataset, hyperparame
     if(scale){
       gram <- scaleToUnitInterval(matrix = gram)
     }
+    
     clockout <- as_hms(Sys.time())
     
     currKernelComputeTime <- as_hms(clockout - clockin)
@@ -215,6 +231,7 @@ createTarget <- function(dataset){
   for(i in 1:length(dataset)){
     target[i] <- as.numeric(graph_attr(dataset[[i]]))
   }
+  
   target <- as.factor(target)
   
   return(target)
@@ -243,6 +260,7 @@ normalizeKernel <- function(gram){
         normalized[c,r] <- normalized[r,c]
         c <- c + 1
       }
+      
       r <- r + 1
     }
     
@@ -356,129 +374,4 @@ linearEvaluation <- function(x, m, b){
 
 
 #-------------------------------------------------------------------------------
-
-#OLD CODE
-
-
-# runExperiment <- function(dataset, kernel, cost = c(1), hyperparameter = c(NA), runs = c(1)){
-# 
-#   scale <- TRUE
-# 
-#   #-----------------------
-# 
-#   message(paste0("Beginning ", kernel, " Kernel experiments..."))
-#   message(paste0(Sys.time()))
-# 
-#   clockin    <- as_hms(Sys.time())
-#   experiment <- createExperimentObject(dataset = deparse(substitute(dataset)), 
-#                                        kernel = kernel, 
-#                                        numCost = length(cost), 
-#                                        numHyperparameter = length(hyperparameter), 
-#                                        runs = runs)
-# 
-#   for(i in 1:runs){
-#     message(paste('Run #', i, "of", runs))
-#     experiment <- tuneHyperparameter(experiment = experiment, 
-#                                      currRun = i,
-#                                      dataset = dataset, 
-#                                      hyperparameter = hyperparameter, 
-#                                      cost = cost, 
-#                                      scale = scale)
-#   }
-#   
-#   message(paste("...done!"))
-# 
-#   writeToFile(experiment = experiment)
-# 
-#   clockout <- as_hms(Sys.time())
-#   time     <- as_hms(clockout - clockin)
-#   
-#   message(paste0("Total experiment time: ", time))
-# }
-
-
-# tuneHyperparameter <- function(experiment, target, currRun, dataset, hyperparameter, cost, scale){
-# 
-#   #target <- createTarget(dataset = dataset)
-#   
-#   for(h in 1:length(hyperparameter)){
-#     
-#     clockin <- as_hms(Sys.time())
-#     gram    <- computeKernel(dataset = dataset, kernel = experiment$kernel, 
-#                              parameter = hyperparameter[h])
-#     
-#     if(scale){
-#       gram <- scaleToUnitInterval(matrix = gram)
-#     }
-#     clockout <- as_hms(Sys.time())
-#     
-#     currKernelComputeTime <- as_hms(clockout - clockin)
-#     
-#     experiment <- tuneSvmCost(experiment = experiment, gram = gram, 
-#                               target = target, cost = cost, currRun = currRun, 
-#                               hypLoc = h)
-#     experiment <- setHyperparam(expObj = experiment, hyperparam = hyperparameter[h], 
-#                                 runLoc = currRun, hypLoc = h)
-#     experiment <- setKernelComputeTime(expObj = experiment, 
-#                                        newTime = currKernelComputeTime, 
-#                                        runLoc = currRun, hypLoc = h)
-#   }
-# 
-#   
-#   return(experiment)
-# }
-
-
-# tuneSvmCost <- function(experiment, gram, target, cost, currRun, hypLoc){
-# 
-#   folds <- 10
-# 
-#   #----------------------------------------
-# 
-#   class(gram) <- "kernelMatrix"
-#   
-#   #svms <- vector(mode = "list", length = length(cost))
-#   CVtime <- c(rep(0,length(cost)))
-# 
-#   for(i in 1:length(cost)){
-#     cat(paste0("cost = ", cost[i], "\n"))
-#     
-#     clockin  <- as_hms(Sys.time())
-#     #svms[[i]]  <- ksvm(gram, target, C = cost[i], cross = folds)
-#     currSvm  <- ksvm(gram, target, C = cost[i], cross = folds) 
-#     clockout <- as_hms(Sys.time())
-#     
-#     #CVtime[i] <- as_hms(clockout - clockin)
-#     
-#     experiment <- setCost(expObj = experiment, newCost = cost[i], 
-#                           runLoc = currRun, hypLoc = hypLoc, cstLoc = i)
-#     experiment <- setCVerror(expObj = experiment, newCVerror = currSvm@cross, 
-#                              runLoc = currRun, hypLoc = hypLoc, cstLoc = i)
-#     experiment <- setTrainingError(expObj = experiment, 
-#                                    newTrainingError = currSvm@error, 
-#                                    runLoc = currRun, hypLoc = hypLoc, cstLoc = i)
-#     experiment <- setCVtime(expObj = experiment, 
-#                             newCVtime = as_hms(clockout - clockin),
-#                             runLoc = currRun, hypLoc = hypLoc, cstLoc = i)
-#     experiment <- setSV(expObj = experiment, newSV =  currSvm@nSV, 
-#                         runLoc = currRun, hypLoc = hypLoc, cstLoc = i)
-#   }
-#   
-#   # for(i in 1:length(cost)){
-#   #   experiment <- setCost(expObj = experiment, newCost = cost[i], 
-#   #                         runLoc = currRun, hypLoc = hypLoc, cstLoc = i)
-#   #   experiment <- setCVerror(expObj = experiment, newCVerror = (svms[[i]])@cross, 
-#   #                            runLoc = currRun, hypLoc = hypLoc, cstLoc = i)
-#   #   experiment <- setTrainingError(expObj = experiment, 
-#   #                                  newTrainingError = (svms[[i]])@error, 
-#   #                                  runLoc = currRun, hypLoc = hypLoc, cstLoc = i)
-#   #   experiment <- setCVtime(expObj = experiment, 
-#   #                           newCVtime = CVtime[i],
-#   #                           runLoc = currRun, hypLoc = hypLoc, cstLoc = i)
-#   #   experiment <- setSV(expObj = experiment, newSV =  (svms[[i]])@nSV, 
-#   #                       runLoc = currRun, hypLoc = hypLoc, cstLoc = i)
-#   # }
-# 
-#   return(experiment)
-# }
 
