@@ -3,15 +3,12 @@
 # Experiment Object
 
 #===================================================================
-#'  Creates an object comprised of compositions of lists, that holds
-#'  information regarding fitting SVM with a given graph kernel with 
-#'  combinations of costs, and hyperparameters.
+#'  Creates an Experiment object, which is comprised of run objects 
+#'  and the associated graph kernel and data set. By default, 
+#'  no run objects are in the Experiment.
 #'  
 #'  @param datasetName name of the data set
 #'  @param kernel string containing key for kernel
-#'  @param numCost the number of costs to tune
-#'  @param numHyperparameter the number of hyperparameters to tune 
-#'  @param runs the number of reptitions of the experiment
 #'  @return experiment object
 #===================================================================
 createExperimentObject <- function(datasetName, kernel){
@@ -24,6 +21,20 @@ createExperimentObject <- function(datasetName, kernel){
   class(expObj) <- "experiment"
   
   return(expObj)
+}
+
+
+#===================================================================
+#'  Add run object to the given experiment object
+#'  
+#'  @param experiment experiment object
+#'  @param run run object
+#'  @return experiment object with the added run object
+#===================================================================
+addRun <- function(experiment, run){
+  index <- length(experiment$runs) + 1
+  experiment$runs[[index]] <- run
+  return(experiment)
 }
 
 
@@ -141,6 +152,14 @@ setKernelComputeTime <- function(expObj, newTime, runLoc, hypLoc){
 
 # Run object
 
+#===================================================================
+#'  Creates an object comprised of compositions of lists that holds
+#'  information regarding SVM performance
+#'  
+#'  @param numCost the number of costs to tune
+#'  @param numHyperparameter the number of hyperparameters to tune 
+#'  @return run object
+#===================================================================
 createRun <- function(numHyperparameter, numCost){
   cvRun     <- vector(mode = "list", length = numCost)
   hyperRun  <- vector(mode = "list", length = numHyperparameter)
@@ -158,17 +177,46 @@ createRun <- function(numHyperparameter, numCost){
     hyperRun[[i]] <- append(list("hyperparameter" = NA, "kernel_compute_time" = NA), costList)
   }
   
+  class(hyperRun) <- "run"
+  
   return(hyperRun)
 }
 
 
-addRun <- function(experiment, run){
-  index <- length(experiment$runs) + 1
-  experiment$runs[[index]] <- run
-  return(experiment)
+# --------------------- Accessors
+
+
+getRunCost <- function(runObj, hypLoc, cstLoc){
+  return(runObj[[hypLoc]]$costs[[cstLoc]]$cost)
 }
 
-#--------------------- Mutators for Run
+
+getRunCVerror <- function(runObj, hypLoc, cstLoc){
+  return(runObj[[hypLoc]]$costs[[cstLoc]]$cv_error)
+}
+
+
+getRunTrainingError <- function(runObj, runLoc, hypLoc, cstLoc){
+  return(runObj[[hypLoc]]$costs[[cstLoc]]$training_error)
+}
+
+
+getRunCVtime <- function(runObj, hypLoc, cstLoc){
+  return(runObj[[hypLoc]]$costs[[cstLoc]]$cv_time)
+}
+
+
+getRunSV <- function(runObj, hypLoc, cstLoc){
+  return(runObj[[hypLoc]]$costs[[cstLoc]]$support_vectors)
+}
+
+
+getRunKernelComputeTime <- function(runObj, hypLoc){
+  return(runObj[[hypLoc]]$kernel_compute_time)
+}
+
+
+#--------------------- Mutators
 
 
 setRunHyperparam <- function(runObj, hyperparam, hypLoc){
@@ -211,13 +259,4 @@ setRunKernelComputeTime <- function(runObj, newTime, hypLoc){
   runObj[[hypLoc]]$kernel_compute_time <- newTime
   return(runObj)
 }
-
-
-
-
-
-
-
-
-
 
