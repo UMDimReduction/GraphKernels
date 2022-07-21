@@ -14,8 +14,7 @@
 createExperimentObject <- function(datasetName, kernel){
   
   repeatRun <- vector(mode = "list", length = 0)
-  
-  runList <- list("runs" = repeatRun)
+  runList   <- list("runs" = repeatRun)
   
   expObj        <- append(list("kernel" = kernel, "dataset" = datasetName), runList)
   class(expObj) <- "experiment"
@@ -32,13 +31,20 @@ createExperimentObject <- function(datasetName, kernel){
 #'  @return experiment object with the added run object
 #===================================================================
 addRun <- function(experiment, run){
+  if(length(experiment$runs) > 0 && 
+     getRunNumHyperparams(run) != getRunNumHyperparams(experiment$runs[[length(experiment$runs)]])){
+    stop("Error: cannot add Run object to Experiment object containing
+         different number of hyperparamaters")
+  }
+  
   index <- length(experiment$runs) + 1
   experiment$runs[[index]] <- run
+  
   return(experiment)
 }
 
 
-# ------------------------------------------- Accessors and mutators
+# ------------------------------------------- Accessors and Mutators
 
 # --------------------- Accessors
 
@@ -184,6 +190,10 @@ createRun <- function(numHyperparameter, numCost){
 
 
 # --------------------- Accessors
+
+getRunNumHyperparams <- function(runObj){
+  return(length(runObj))
+}
 
 
 getRunCost <- function(runObj, hypLoc, cstLoc){
