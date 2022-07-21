@@ -4,7 +4,7 @@ library(hms)
 library(graphkernels)
 
 library(future.apply)
-plan(multisession)
+plan(multisession, workers = future::availableCores())
 
 source("./src/experiment_obj.R")
 
@@ -46,29 +46,33 @@ runExperiment <- function(dataset, kernel, runs = 1, hyperparameter = c(NA), cos
                                              cost = cost, 
                                              scale = scale),
                              future.seed = TRUE)  
+    for(i in 1:runs){
+      experiment <- addRun(experiment, runList[,i])
+    }
   }
   else{
     runList <- vector(mode = "list", length = runs)
     for(i in 1:runs){
-      runList[i] <- tuneHyperparameter(experiment = experiment, 
+      runList[[i]] <- tuneHyperparameter(experiment = experiment, 
                          target = target,
                          currRun = i,
                          dataset = dataset, 
                          hyperparameter = hyperparameter, 
                          cost = cost, 
                          scale = scale)
+      experiment <- addRun(experiment, runList[[i]])
     }
   }
   
-  for(i in 1:runs){
-    experiment <- addRun(experiment, runList[i])
-  }
+  
   
   writeToFile(experiment = experiment)
   
   clockout <- as_hms(Sys.time())
   time     <- as_hms(clockout - clockin)
   message(paste0("...done!\nTotal experiment time: ", time))
+  
+  return(experiment)
 }
 
 
@@ -136,7 +140,7 @@ tuneSvmCost <- function(runObj, gram, target, cost, hypLoc){
   for(i in 1:length(cost)){
 
     clockin  <- as_hms(Sys.time())
-    currSvm  <- ksvm(gram, target, C = cost[i], cross = folds) 
+    currSvm  <- ksvm(gram, target, C = cost[i], cross = folds, type = "C-svc") 
     clockout <- as_hms(Sys.time())
 
     runObj <- setRunCost(runObj = runObj, newCost = cost[i], hypLoc = hypLoc, cstLoc = i)
@@ -151,7 +155,7 @@ tuneSvmCost <- function(runObj, gram, target, cost, hypLoc){
 
 
 #===================================================================
-#' writes experiment objecy to an .rds file in the cache directory
+#' writes experiment object to an .rds file in the cache directory
 #' 
 #' @param experiment experiment object
 #===================================================================
@@ -346,6 +350,7 @@ scaleSymMatrix <- function(matrix, m, b){
       scaledMatrix[c,r] <- scaledMatrix[r,c]
       c <- c + 1
     }
+    
     r <- r + 1
   }
   
