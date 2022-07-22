@@ -46,33 +46,29 @@ runExperiment <- function(dataset, kernel, runs = 1, hyperparameter = c(NA), cos
                                              cost = cost, 
                                              scale = scale),
                              future.seed = TRUE)  
-    for(i in 1:runs){
-      experiment <- addRun(experiment, runList[,i])
-    }
   }
   else{
     runList <- vector(mode = "list", length = runs)
     for(i in 1:runs){
-      runList[[i]] <- tuneHyperparameter(experiment = experiment, 
+      runList[[i]] <- tuneHyperparameter(experiment = experiment,
                          target = target,
                          currRun = i,
-                         dataset = dataset, 
-                         hyperparameter = hyperparameter, 
-                         cost = cost, 
+                         dataset = dataset,
+                         hyperparameter = hyperparameter,
+                         cost = cost,
                          scale = scale)
-      experiment <- addRun(experiment, runList[[i]])
     }
   }
   
-  
+  for(i in 1:runs){
+    experiment <- addRun(experiment, runList[[i]])
+  }
   
   writeToFile(experiment = experiment)
   
   clockout <- as_hms(Sys.time())
   time     <- as_hms(clockout - clockin)
   message(paste0("...done!\nTotal experiment time: ", time))
-  
-  return(experiment)
 }
 
 
@@ -99,6 +95,7 @@ tuneHyperparameter <- function(experiment, target, currRun, dataset, hyperparame
                              parameter = hyperparameter[h])
     
     if(scale){
+      
       gram <- scaleToUnitInterval(matrix = gram)
     }
     
@@ -107,10 +104,12 @@ tuneHyperparameter <- function(experiment, target, currRun, dataset, hyperparame
     currKernelComputeTime <- as_hms(clockout - clockin)
     
     run <- tuneSvmCost(runObj = run, gram = gram, 
-                     target = target, cost = cost, hypLoc = h)
-    run <- setRunHyperparam(runObj = run, hyperparam = hyperparameter[h], hypLoc = h)
+                       target = target, cost = cost, hypLoc = h, cvFolds = 10)
+    run <- setRunHyperparam(runObj = run, hyperparam = hyperparameter[h], 
+                            hypLoc = h)
     run <- setRunKernelComputeTime(runObj = run, 
-                              newTime = currKernelComputeTime, hypLoc = h)
+                                   newTime = currKernelComputeTime, 
+                                   hypLoc = h)
   }
 
   return(run)
@@ -127,11 +126,7 @@ tuneHyperparameter <- function(experiment, target, currRun, dataset, hyperparame
 #' @param cost is a numeric vector containing the desired cost values to tune
 #' @return A list containing statistics for each svm computed
 #===================================================================
-tuneSvmCost <- function(runObj, gram, target, cost, hypLoc){
-  
-  folds <- 10
-  
-  #----------------------------------------
+tuneSvmCost <- function(runObj, gram, target, cost, hypLoc, cvFolds){
   
   class(gram) <- "kernelMatrix"
   
@@ -140,7 +135,7 @@ tuneSvmCost <- function(runObj, gram, target, cost, hypLoc){
   for(i in 1:length(cost)){
 
     clockin  <- as_hms(Sys.time())
-    currSvm  <- ksvm(gram, target, C = cost[i], cross = folds, type = "C-svc") 
+    currSvm  <- ksvm(gram, target, C = cost[i], cross = cvFolds, type = "C-svc") 
     clockout <- as_hms(Sys.time())
 
     runObj <- setRunCost(runObj = runObj, newCost = cost[i], hypLoc = hypLoc, cstLoc = i)
@@ -198,7 +193,7 @@ computeKernel <- function(dataset, kernel, parameter = NA){
     K <- CalculateEdgeHistKernel(dataset)
   }
   else if(kernel == "EHG"){
-    k <- CalculateEdgeHistGaussKernel(dataset, parameter)
+    K <- CalculateEdgeHistGaussKernel(dataset, parameter)
   }
   else if(kernel == "WL"){
     K <- CalculateWLKernel(dataset, parameter)
@@ -214,6 +209,9 @@ computeKernel <- function(dataset, kernel, parameter = NA){
   }
   else if(kernel == "SP"){
     K <- CalculateShortestPathKernel(dataset)
+  }
+  else{
+    stop(paste0("ERROR: ", kernel, " not a valid kernel key."))
   }
   
   return(K)

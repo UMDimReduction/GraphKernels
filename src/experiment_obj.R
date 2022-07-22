@@ -183,46 +183,52 @@ createRun <- function(numHyperparameter, numCost){
     hyperRun[[i]] <- append(list("hyperparameter" = NA, "kernel_compute_time" = NA), costList)
   }
   
-  class(hyperRun) <- "run"
+  run <- vector(mode = "list", length = 1)
+  run[[1]] <- hyperRun
   
-  return(hyperRun)
+  class(run) <- "run"
+  
+  return(run)
 }
 
 
+# ------------------------------------------- Accessors and Mutators
+
 # --------------------- Accessors
 
+
 getRunNumHyperparams <- function(runObj){
-  return(length(runObj))
+  return(length(runObj[[1]]))
 }
 
 
 getRunCost <- function(runObj, hypLoc, cstLoc){
-  return(runObj[[hypLoc]]$costs[[cstLoc]]$cost)
+  return(runObj[[1]][[hypLoc]]$costs[[cstLoc]]$cost)
 }
 
 
 getRunCVerror <- function(runObj, hypLoc, cstLoc){
-  return(runObj[[hypLoc]]$costs[[cstLoc]]$cv_error)
+  return(runObj[[1]][[hypLoc]]$costs[[cstLoc]]$cv_error)
 }
 
 
 getRunTrainingError <- function(runObj, runLoc, hypLoc, cstLoc){
-  return(runObj[[hypLoc]]$costs[[cstLoc]]$training_error)
+  return(runObj[[1]][[hypLoc]]$costs[[cstLoc]]$training_error)
 }
 
 
 getRunCVtime <- function(runObj, hypLoc, cstLoc){
-  return(runObj[[hypLoc]]$costs[[cstLoc]]$cv_time)
+  return(runObj[[1]][[hypLoc]]$costs[[cstLoc]]$cv_time)
 }
 
 
 getRunSV <- function(runObj, hypLoc, cstLoc){
-  return(runObj[[hypLoc]]$costs[[cstLoc]]$support_vectors)
+  return(runObj[[1]][[hypLoc]]$costs[[cstLoc]]$support_vectors)
 }
 
 
 getRunKernelComputeTime <- function(runObj, hypLoc){
-  return(runObj[[hypLoc]]$kernel_compute_time)
+  return(runObj[[1]][[hypLoc]]$kernel_compute_time)
 }
 
 
@@ -230,43 +236,123 @@ getRunKernelComputeTime <- function(runObj, hypLoc){
 
 
 setRunHyperparam <- function(runObj, hyperparam, hypLoc){
-  runObj[[hypLoc]]$hyperparameter <- hyperparam
+  runObj[[1]][[hypLoc]]$hyperparameter <- hyperparam
   return(runObj)
 }
 
 
 setRunCost <- function(runObj, newCost, hypLoc, cstLoc){
-  runObj[[hypLoc]]$costs[[cstLoc]]$cost <- newCost
+  runObj[[1]][[hypLoc]]$costs[[cstLoc]]$cost <- newCost
   return(runObj)
 }
 
 
 setRunCVerror <- function(runObj, newCVerror, hypLoc, cstLoc){
-  runObj[[hypLoc]]$costs[[cstLoc]]$cv_error <- newCVerror
+  runObj[[1]][[hypLoc]]$costs[[cstLoc]]$cv_error <- newCVerror
   return(runObj)
 }
 
 
 setRunTrainingError <- function(runObj, newTrainingError, hypLoc, cstLoc){
-  runObj[[hypLoc]]$costs[[cstLoc]]$training_error <- newTrainingError
+  runObj[[1]][[hypLoc]]$costs[[cstLoc]]$training_error <- newTrainingError
   return(runObj)
 }
 
 
 setRunCVtime <- function(runObj, newCVtime, hypLoc, cstLoc){
-  runObj[[hypLoc]]$costs[[cstLoc]]$cv_time <- newCVtime
+  runObj[[1]][[hypLoc]]$costs[[cstLoc]]$cv_time <- newCVtime
   return(runObj)
 }
 
 
 setRunSV <- function(runObj, newSV, hypLoc, cstLoc){
-  runObj[[hypLoc]]$costs[[cstLoc]]$support_vectors <- newSV
+  runObj[[1]][[hypLoc]]$costs[[cstLoc]]$support_vectors <- newSV
   return(runObj)
 }
 
 
 setRunKernelComputeTime <- function(runObj, newTime, hypLoc){
-  runObj[[hypLoc]]$kernel_compute_time <- newTime
+  runObj[[1]][[hypLoc]]$kernel_compute_time <- newTime
   return(runObj)
 }
+
+
+# getRunNumHyperparams <- function(runObj){
+#   return(length(runObj))
+# }
+# 
+# 
+# getRunCost <- function(runObj, hypLoc, cstLoc){
+#   return(runObj[[hypLoc]]$costs[[cstLoc]]$cost)
+# }
+# 
+# 
+# getRunCVerror <- function(runObj, hypLoc, cstLoc){
+#   return(runObj[[hypLoc]]$costs[[cstLoc]]$cv_error)
+# }
+# 
+# 
+# getRunTrainingError <- function(runObj, runLoc, hypLoc, cstLoc){
+#   return(runObj[[hypLoc]]$costs[[cstLoc]]$training_error)
+# }
+# 
+# 
+# getRunCVtime <- function(runObj, hypLoc, cstLoc){
+#   return(runObj[[hypLoc]]$costs[[cstLoc]]$cv_time)
+# }
+# 
+# 
+# getRunSV <- function(runObj, hypLoc, cstLoc){
+#   return(runObj[[hypLoc]]$costs[[cstLoc]]$support_vectors)
+# }
+# 
+# 
+# getRunKernelComputeTime <- function(runObj, hypLoc){
+#   return(runObj[[hypLoc]]$kernel_compute_time)
+# }
+# 
+# 
+# #--------------------- Mutators
+# 
+# 
+# setRunHyperparam <- function(runObj, hyperparam, hypLoc){
+#   runObj[[hypLoc]]$hyperparameter <- hyperparam
+#   return(runObj)
+# }
+# 
+# 
+# setRunCost <- function(runObj, newCost, hypLoc, cstLoc){
+#   runObj[[hypLoc]]$costs[[cstLoc]]$cost <- newCost
+#   return(runObj)
+# }
+# 
+# 
+# setRunCVerror <- function(runObj, newCVerror, hypLoc, cstLoc){
+#   runObj[[hypLoc]]$costs[[cstLoc]]$cv_error <- newCVerror
+#   return(runObj)
+# }
+# 
+# 
+# setRunTrainingError <- function(runObj, newTrainingError, hypLoc, cstLoc){
+#   runObj[[hypLoc]]$costs[[cstLoc]]$training_error <- newTrainingError
+#   return(runObj)
+# }
+# 
+# 
+# setRunCVtime <- function(runObj, newCVtime, hypLoc, cstLoc){
+#   runObj[[hypLoc]]$costs[[cstLoc]]$cv_time <- newCVtime
+#   return(runObj)
+# }
+# 
+# 
+# setRunSV <- function(runObj, newSV, hypLoc, cstLoc){
+#   runObj[[hypLoc]]$costs[[cstLoc]]$support_vectors <- newSV
+#   return(runObj)
+# }
+# 
+# 
+# setRunKernelComputeTime <- function(runObj, newTime, hypLoc){
+#   runObj[[hypLoc]]$kernel_compute_time <- newTime
+#   return(runObj)
+# }
 
