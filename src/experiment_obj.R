@@ -234,6 +234,20 @@ getRunKernelComputeTime <- function(runObj, hypLoc){
 
 #--------------------- Mutators
 
+setRunSVMstats <- function(runObj, cost, CVerror, trainingError, CVTime, numSV, hypLoc, cstLoc){
+  runObj[[1]][[hypLoc]]$costs[[cstLoc]]$cost <- cost
+  runObj[[1]][[hypLoc]]$costs[[cstLoc]]$cv_error <- CVerror
+  runObj[[1]][[hypLoc]]$costs[[cstLoc]]$training_error <- trainingError
+  runObj[[1]][[hypLoc]]$costs[[cstLoc]]$cv_time <- CVtime
+  runObj[[1]][[hypLoc]]$costs[[cstLoc]]$support_vectors <- numSV
+  return(runObj)
+}
+
+setRunKernelstats <- function(runObj, compTime, hyperparam, hypLoc){
+  runObj[[1]][[hypLoc]]$hyperparameter <- hyperparam
+  runObj[[1]][[hypLoc]]$kernel_compute_time <- compTime
+  return(runObj)
+}
 
 setRunHyperparam <- function(runObj, hyperparam, hypLoc){
   runObj[[1]][[hypLoc]]$hyperparameter <- hyperparam
