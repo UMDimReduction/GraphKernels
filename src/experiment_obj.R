@@ -12,7 +12,6 @@
 #'  @return experiment object
 #===================================================================
 createExperimentObject <- function(datasetName, kernel){
-  
   repeatRun <- vector(mode = "list", length = 0)
   runList   <- list("runs" = repeatRun)
   
@@ -234,7 +233,7 @@ getRunKernelComputeTime <- function(runObj, hypLoc){
 
 #--------------------- Mutators
 
-setRunSVMstats <- function(runObj, cost, CVerror, trainingError, CVTime, numSV, hypLoc, cstLoc){
+setRunSVMstats <- function(runObj, cost, CVerror, trainingError, CVtime, numSV, hypLoc, cstLoc){
   runObj[[1]][[hypLoc]]$costs[[cstLoc]]$cost <- cost
   runObj[[1]][[hypLoc]]$costs[[cstLoc]]$cv_error <- CVerror
   runObj[[1]][[hypLoc]]$costs[[cstLoc]]$training_error <- trainingError
