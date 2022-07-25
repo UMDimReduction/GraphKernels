@@ -9,6 +9,7 @@ List of kernels available and their codes
 
 "VH" - Vertex Histogram Kernel - NA
 "VHG" - Vertex Histogram Kernel combined with RBF - RBF parameter
+"VEH" - Vertex-Edge Histogram Kernel - NA
 "VEHG" - Vertex Edge Histogram Kernel combined with RBF - RBF parameter
 "VVHG" - Vertex Vertex-edge Histogram Kernel (VH + h * VEH) - hyperparameter 'h'
 "EH" - Edge Histogram Kernel - NA
