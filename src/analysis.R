@@ -90,13 +90,11 @@ tuneHyperparameter <- function(experiment, target, currRun, dataset, hyperparame
   
   for(h in 1:length(hyperparameter)){
     
-    clockin <- as_hms(Sys.time())
-    gram    <- computeKernel(dataset = dataset, kernel = experiment$kernel, 
-                             parameter = hyperparameter[h])
-    
+    clockin  <- as_hms(Sys.time())
+    gram     <- computeKernel(dataset = dataset, kernel = experiment$kernel, 
+                              parameter = hyperparameter[h])
     if(scale){
-      
-      gram <- scaleToUnitInterval(matrix = gram)
+      gram   <- scaleToUnitInterval(matrix = gram)
     }
     
     clockout <- as_hms(Sys.time())
@@ -105,11 +103,15 @@ tuneHyperparameter <- function(experiment, target, currRun, dataset, hyperparame
     
     run <- tuneSvmCost(runObj = run, gram = gram, 
                        target = target, cost = cost, hypLoc = h, cvFolds = 10)
-    run <- setRunHyperparam(runObj = run, hyperparam = hyperparameter[h], 
-                            hypLoc = h)
-    run <- setRunKernelComputeTime(runObj = run, 
-                                   newTime = currKernelComputeTime, 
-                                   hypLoc = h)
+    
+    run <- setRunKernelstats(runObj = run, compTime = currKernelComputeTime, 
+                             hyperparam = hyperparameter[h], hypLoc = h)
+    # run <- setRunHyperparam(runObj = run, hyperparam = hyperparameter[h], 
+    #                         hypLoc = h)
+    # run <- setRunKernelComputeTime(runObj = run, 
+    #                                newTime = currKernelComputeTime, 
+    #                                hypLoc = h)
+    gc()
   }
 
   return(run)
@@ -137,12 +139,18 @@ tuneSvmCost <- function(runObj, gram, target, cost, hypLoc, cvFolds){
     clockin  <- as_hms(Sys.time())
     currSvm  <- ksvm(gram, target, C = cost[i], cross = cvFolds, type = "C-svc") 
     clockout <- as_hms(Sys.time())
+    
+    runObj   <- setRunSVMstats(runObj = runObj, cost = cost[i], 
+                               CVerror = currSvm@cross, 
+                               trainingError = currSvm@error, 
+                               CVTime = as_hms(clockout - clockin), 
+                               numSV = currSvm@nSV, hypLoc = hypLoc, cstLoc = i)
 
-    runObj <- setRunCost(runObj = runObj, newCost = cost[i], hypLoc = hypLoc, cstLoc = i)
-    runObj <- setRunCVerror(runObj = runObj, newCVerror = currSvm@cross, hypLoc = hypLoc, cstLoc = i)
-    runObj <- setRunTrainingError(runObj = runObj, newTrainingError = currSvm@error, hypLoc = hypLoc, cstLoc = i)
-    runObj <- setRunCVtime(runObj = runObj, newCVtime = as_hms(clockout - clockin),hypLoc = hypLoc, cstLoc = i)
-    runObj <- setRunSV(runObj = runObj, newSV =  currSvm@nSV, hypLoc = hypLoc, cstLoc = i)
+    # runObj <- setRunCost(runObj = runObj, newCost = cost[i], hypLoc = hypLoc, cstLoc = i)
+    # runObj <- setRunCVerror(runObj = runObj, newCVerror = currSvm@cross, hypLoc = hypLoc, cstLoc = i)
+    # runObj <- setRunTrainingError(runObj = runObj, newTrainingError = currSvm@error, hypLoc = hypLoc, cstLoc = i)
+    # runObj <- setRunCVtime(runObj = runObj, newCVtime = as_hms(clockout - clockin),hypLoc = hypLoc, cstLoc = i)
+    # runObj <- setRunSV(runObj = runObj, newSV = currSvm@nSV, hypLoc = hypLoc, cstLoc = i)
   }
 
   return(runObj)
