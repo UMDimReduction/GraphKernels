@@ -17,7 +17,7 @@ source("./src/experiment_obj.R")
 #' data set. Experiment runs 10-fold CV for each hyperparameter. Experiment 
 #' is repeats n times, where n is the value runs.
 #'
-#' @param dataset list object representing the data set
+#' @param dataset list object containing igraphs of undirected graphs
 #' @param kernel string containing key for kernel
 #' @param runs number of times to repeat experiment
 #' @param hyperparameter numeric vector of hyperparameters
@@ -27,7 +27,6 @@ source("./src/experiment_obj.R")
 #'              are scaled to [0,1]
 #===================================================================
 runExperiment <- function(dataset, kernel, runs = 1, hyperparameter = c(NA), cost = c(1), parallel = TRUE, scale = TRUE){
-  
   message(paste0("Beginning ", kernel, " Kernel experiments..."))
   message(paste0(Sys.time()))
   
@@ -51,12 +50,12 @@ runExperiment <- function(dataset, kernel, runs = 1, hyperparameter = c(NA), cos
     runList <- vector(mode = "list", length = runs)
     for(i in 1:runs){
       runList[[i]] <- tuneHyperparameter(experiment = experiment,
-                         target = target,
-                         currRun = i,
-                         dataset = dataset,
-                         hyperparameter = hyperparameter,
-                         cost = cost,
-                         scale = scale)
+                                         target = target,
+                                         currRun = i,
+                                         dataset = dataset,
+                                         hyperparameter = hyperparameter,
+                                         cost = cost,
+                                         scale = scale)
     }
   }
   
@@ -85,11 +84,9 @@ runExperiment <- function(dataset, kernel, runs = 1, hyperparameter = c(NA), cos
 #' @return the updated experiment object
 #===================================================================
 tuneHyperparameter <- function(experiment, target, currRun, dataset, hyperparameter, cost, scale){
-
   run <- createRun(length(hyperparameter), length(cost))
   
   for(h in 1:length(hyperparameter)){
-    
     clockin  <- as_hms(Sys.time())
     gram     <- computeKernel(dataset = dataset, kernel = experiment$kernel, 
                               parameter = hyperparameter[h])
@@ -106,11 +103,6 @@ tuneHyperparameter <- function(experiment, target, currRun, dataset, hyperparame
     
     run <- setRunKernelstats(runObj = run, compTime = currKernelComputeTime, 
                              hyperparam = hyperparameter[h], hypLoc = h)
-    # run <- setRunHyperparam(runObj = run, hyperparam = hyperparameter[h], 
-    #                         hypLoc = h)
-    # run <- setRunKernelComputeTime(runObj = run, 
-    #                                newTime = currKernelComputeTime, 
-    #                                hypLoc = h)
     gc()
   }
 
@@ -129,13 +121,11 @@ tuneHyperparameter <- function(experiment, target, currRun, dataset, hyperparame
 #' @return A list containing statistics for each svm computed
 #===================================================================
 tuneSvmCost <- function(runObj, gram, target, cost, hypLoc, cvFolds){
-  
   class(gram) <- "kernelMatrix"
-  
+
   CVtime <- c(rep(0,length(cost)))
   
   for(i in 1:length(cost)){
-
     clockin  <- as_hms(Sys.time())
     currSvm  <- ksvm(gram, target, C = cost[i], cross = cvFolds, type = "C-svc") 
     clockout <- as_hms(Sys.time())
@@ -143,14 +133,8 @@ tuneSvmCost <- function(runObj, gram, target, cost, hypLoc, cvFolds){
     runObj   <- setRunSVMstats(runObj = runObj, cost = cost[i], 
                                CVerror = currSvm@cross, 
                                trainingError = currSvm@error, 
-                               CVTime = as_hms(clockout - clockin), 
+                               CVtime = as_hms(clockout - clockin), 
                                numSV = currSvm@nSV, hypLoc = hypLoc, cstLoc = i)
-
-    # runObj <- setRunCost(runObj = runObj, newCost = cost[i], hypLoc = hypLoc, cstLoc = i)
-    # runObj <- setRunCVerror(runObj = runObj, newCVerror = currSvm@cross, hypLoc = hypLoc, cstLoc = i)
-    # runObj <- setRunTrainingError(runObj = runObj, newTrainingError = currSvm@error, hypLoc = hypLoc, cstLoc = i)
-    # runObj <- setRunCVtime(runObj = runObj, newCVtime = as_hms(clockout - clockin),hypLoc = hypLoc, cstLoc = i)
-    # runObj <- setRunSV(runObj = runObj, newSV = currSvm@nSV, hypLoc = hypLoc, cstLoc = i)
   }
 
   return(runObj)
@@ -190,6 +174,9 @@ computeKernel <- function(dataset, kernel, parameter = NA){
   }
   else if(kernel == "VHG"){
     K <- CalculateVertexHistGaussKernel(dataset, parameter)
+  }
+  else if(kernel == "VEH"){
+    K <- CalculateVertexEdgeHistKernel(dataset)
   }
   else if(kernel == "VEHG"){
     K <- CalculateVertexEdgeHistGaussKernel(dataset, parameter)
@@ -235,7 +222,6 @@ computeKernel <- function(dataset, kernel, parameter = NA){
 #' @return target vector
 #===================================================================
 createTarget <- function(dataset){
-  
   target <- c(rep(0, length(dataset)))
   
   for(i in 1:length(dataset)){
@@ -256,13 +242,10 @@ createTarget <- function(dataset){
 #          is symmetric, NULL otherwise
 #===================================================================
 normalizeKernel <- function(gram){
-  
   normalized <- matrix(0, nrow = nrow(gram), ncol = ncol(gram))
   
   if(isSymmetric(gram)){
-    
     r <- 1
-    
     while(r < nrow(gram)){
       c <- r + 1
       while(c <= ncol(gram)){
@@ -270,7 +253,6 @@ normalizeKernel <- function(gram){
         normalized[c,r] <- normalized[r,c]
         c <- c + 1
       }
-      
       r <- r + 1
     }
     
@@ -294,7 +276,6 @@ normalizeKernel <- function(gram){
 #' @return the scaled matrix
 #===================================================================
 scaleToUnitInterval <- function(matrix){
-  
   scaledMatrix <- NULL
   
   if(isSymmetric(matrix)){
@@ -319,7 +300,6 @@ scaleToUnitInterval <- function(matrix){
 #' @return the scaled matrix
 #===================================================================
 scaleToUnitBall <- function(matrix){
-  
   scaledMatrix <- NULL
   
   if(isSymmetric(matrix)){
@@ -344,11 +324,9 @@ scaleToUnitBall <- function(matrix){
 #' @return the scaled matrix
 #===================================================================
 scaleSymMatrix <- function(matrix, m, b){
-  
   scaledMatrix <- matrix
   
   r <- 1
-  
   while(r < nrow(matrix)){
     c <- r + 1
     while(c <= ncol(matrix)){
@@ -356,7 +334,6 @@ scaleSymMatrix <- function(matrix, m, b){
       scaledMatrix[c,r] <- scaledMatrix[r,c]
       c <- c + 1
     }
-    
     r <- r + 1
   }
   
@@ -377,9 +354,7 @@ scaleSymMatrix <- function(matrix, m, b){
 #' @return The value of f at input x
 #===================================================================
 linearEvaluation <- function(x, m, b){
-  
   scaled <- m*x + b
-  
   return(scaled)
 }
 
