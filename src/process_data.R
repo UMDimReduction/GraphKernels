@@ -37,7 +37,9 @@ processData <- function(){
   for(ds in 1:length(datasets)){
     createAccuracyBarplot(datasets[[ds]])
     createKernelTimeBoxplot(datasets[[ds]])
-    createCVTimeBoxplot(datasets[[ds]])
+    #createCVTimeBoxplot(datasets[[ds]])
+    #createSVplot(datasets[[ds]])
+    #createAccuracySVplot(datasets[[ds]])
   }
   
   message("Creating table...")
@@ -63,14 +65,13 @@ createAccuracyBarplot <- function(experimentList){
     accuracy     <- c(rep(0, runs))
     bestModelLoc <- vector(mode = "list", length = runs)
     
-    for(currRun in 1:runs){
-      bestModelLoc[[currRun]] <- getBestModel(currExperiment, currRun)
+    for(r in 1:runs){
+      bestModelLoc[[r]] <- getBestKernel(currExperiment, r)
       
-      r <- bestModelLoc[[currRun]][1]
-      h <- bestModelLoc[[currRun]][2]
-      c <- bestModelLoc[[currRun]][3]
+      h <- bestModelLoc[[r]][1]
+      c <- bestModelLoc[[r]][2]
       
-      accuracy[currRun] <- (1 - getTrainingError(currExperiment, r, h, c))
+      accuracy[r] <- (1 - getCVerror(currExperiment, r, h, c))
     }
     
     accuracyDF[i, 1] <- getKernel(currExperiment)
@@ -85,7 +86,7 @@ createAccuracyBarplot <- function(experimentList){
         geom_errorbar(aes(x = Kernel, ymin = Accuracy - sd, ymax = Accuracy + sd), width = 0.4, colour = "black", alpha = 0.9, size = 1.3) +
         xlab("Kernel") +
         ylab("Accuracy (%)") +
-        scale_y_continuous(breaks = scales::pretty_breaks(n = 10), limits = c(0,100)))
+        scale_y_continuous(expand = c(0, 0), breaks = scales::pretty_breaks(n = 10), limits = c(0,100)))
   dev.off()
 }
 
@@ -118,9 +119,9 @@ createKernelTimeBoxplot <- function(experimentList){
   pdf(file = paste0("./figures/", getDataset(experimentList[[1]]), "_KernelComputeTime.pdf"))
   print(ggplot(computeKTimeDF, aes(x = Kernel, y = ComputeTime)) + 
           ggtitle(paste0("Average Gram matrix computation time on the ", toupper(getDataset(experimentList[[1]])), " data set")) +
-          geom_boxplot(outlier.colour = "black", outlier.shape = 16,
+          geom_boxplot(outlier.colour = NA, outlier.shape = 16,
                        outlier.size = 2, notch = FALSE) +
-          geom_jitter(shape=16, position=position_jitter(0.2)) +
+          geom_jitter(shape = 16, position = position_jitter(0.2)) +
           xlab("Kernel") +
           ylab("Computation Time (seconds)") +
           scale_y_continuous(trans = "log10"))
@@ -135,8 +136,7 @@ createKernelTimeBoxplot <- function(experimentList){
 #' @param experimentList list of experiment objects on the same data set
 #===================================================================
 createCVTimeBoxplot <- function(experimentList){
-  numExperiments  <- length(experimentList)
-  
+  numExperiments <- length(experimentList)
   computeFTimeDF <- data.frame("Kernel" = "", "ComputeTime" = 0)
   
   count <- 1
@@ -156,9 +156,9 @@ createCVTimeBoxplot <- function(experimentList){
   pdf(file = paste0("./figures/", getDataset(experimentList[[1]]), "_svmFittingTime.pdf"))
   print(ggplot(computeFTimeDF, aes(x = Kernel, y = ComputeTime)) + 
         ggtitle(paste0("Average cross-validation fitting time on the ", toupper(getDataset(experimentList[[1]])), " data set")) +
-        geom_boxplot(outlier.colour = "black", outlier.shape = 16,
+        geom_boxplot(outlier.colour = NA, outlier.shape = 16,
                        outlier.size = 2, notch = FALSE) +
-        geom_jitter(shape=16, position=position_jitter(0.2)) +
+        geom_jitter(shape = 16, position = position_jitter(0.2)) +
         xlab("Kernel") +
         ylab("CV Fitting Time (seconds)") +
         scale_y_continuous(trans = "log10"))
@@ -190,14 +190,16 @@ createTable <- function(datasets){
     df[dset, 2] <- getKernel(expObj = best)
     df[dset, 3] <- getHyperparam(expObj = best, runLoc = r, hypLoc = h)
     df[dset, 4] <- getCost(expObj = best, runLoc = r, hypLoc = h, cstLoc = c)
-    df[dset, 5] <- (1 - getTrainingError(expObj = best, runLoc = r, hypLoc = h, cstLoc = c))
+    df[dset, 5] <- (1 - getCVerror(expObj = best, runLoc = r, hypLoc = h, cstLoc = c))
     df[dset, 6] <- getKernelComputeTime(expObj = best, runLoc = r, hypLoc = h)
     df[dset, 7] <- getCVtime(expObj = best, runLoc = r, hypLoc = h, cstLoc = c)
   }
   
   table <- kable(head(df), digits = 2, 
                  col.names = c("Data set", "Best kernel", "Parameter", "Cost", 
-                               "Accuracy", "Gram matrix (s)", "CV (s)"), "latex")
+                               "Accuracy (%)", "Gram matrix (s)", "CV (s)"), "latex",
+                 caption = "Best performing kernel on each data set")
+  
   
   f <- file("./figures/bestKernelsTable.txt")
   writeLines(table, f)
@@ -256,6 +258,33 @@ getFittingTimes <- function(experiment){
   return(fittingTimes)
 }
 
+#===================================================================
+#' Gets the number of support vectors from each model in the given 
+#' experiment object.
+#' 
+#' @param experiment experiment object
+#' @return numeric vector containing number of support vectors
+#===================================================================
+getNumSV <- function(experiment){
+  numRuns        <- getNumRuns(experiment)
+  numHyperparams <- getNumHyperparams(experiment)
+  numCost        <- getNumCost(experiment)
+  
+  numSV <- c(rep(0, numRuns * numHyperparams * numCost))
+  count <- 1
+  
+  for(r in 1:numRuns){
+    for(h in 1:numHyperparams){
+      for(c in 1:numCost){
+        numSV[count] <- getSV(experiment, r, h, c)
+        count <- count + 1 
+      }# for c
+    }# for h
+  }# for r
+  
+  return(numSV)
+}
+
 
 #===================================================================
 #' Finds the best graph kernel in terms of cross-validation performance
@@ -305,12 +334,12 @@ getOverallBestKernel <- function(experiments){
 #' @param experiment experiment object
 #' @param run the run of the experiment
 #' @return the location of the experiment object as a numeric vector 
-#'         of the form (run, hyperparameter location, cost location)
+#'         of the form (hyperparameter location, cost location)
 #===================================================================
-getBestModel <- function(experiment, run){
+getBestKernel <- function(experiment, run){
   bestCVerror <- .Machine$integer.max
   bestNumSV   <- .Machine$integer.max
-  location    <- c(-1,-1,-1)
+  location    <- c(-1,-1)
   
   for(h in 1:getNumHyperparams(experiment)){
     for(c in 1:getNumCost(experiment)){
@@ -321,9 +350,8 @@ getBestModel <- function(experiment, run){
          ((currCVerror == bestCVerror) && (currNumSV < bestNumSV))){
         bestCVerror <- currCVerror
         bestNumSV   <- currNumSV
-        location[1] <- run
-        location[2] <- h
-        location[3] <- c
+        location[1] <- h
+        location[2] <- c
       }
     }# for c
   }# for h
@@ -334,3 +362,96 @@ getBestModel <- function(experiment, run){
 
 #-------------------------------------------------------------------------------
 
+
+# createAccuracySVplot <- function(experimentList){
+#   numExperiments  <- length(experimentList)
+#   df  <- data.frame("Kernel" = "", "Accuracy" = 0, "SV" = 0)
+#   
+#   count <- 1
+#   for(i in 1:numExperiments){
+#     currExp <- experimentList[[i]]
+#     runs <- getNumRuns(currExp)
+#     
+#     bestModelLoc <- vector(mode = "list", length = runs)
+#     
+#     kernelName <- getKernel(currExp)
+#     
+#     hyperparams <- getNumHyperparams(currExp)
+#     costs <- getNumCost(currExp)
+#     
+#     for(r in 1:runs){
+#       for(h in 1:hyperparams){
+#         for(c in 1:costs){
+#           df[count, 1] <- kernelName
+#           df[count, 2] <- (1 - getCVerror(currExp, r, h, c))
+#           df[count, 3] <- getSV(currExp, r, h, c)
+#           
+#           count <- count + 1
+#         }# for c
+#       }# for h
+#     }# for r
+#   }# for i
+#   
+#   pdf(file = paste0("./figures/", getDataset(experimentList[[1]]), "_accuracySV.pdf"))
+#   print(ggplot(df, aes(x = Accuracy, y = SV)) +
+#           ggtitle(paste0(toupper(getDataset(experimentList[[1]])))) +
+#           geom_point(aes(fill = Kernel), size = 2, colour = "black", pch = 21) +
+#           xlab("Accuracy") +
+#           ylab("Support Vectors") +
+#           scale_x_continuous(expand = c(0, 0), limits = c(0,1)) +
+#           scale_y_continuous(expand = c(0, 0), limits = c(0,1178), breaks = scales::pretty_breaks(n = 10)))
+#   dev.off()
+# }
+
+# createSVpointPlot <- function(experimentList){
+#   numExperiments  <- length(experimentList)
+#   svDF <- data.frame("Kernel" = "", "Robustness" = 0)
+# 
+#   # count <- 1
+#   # for(i in 1:numExperiments){
+#   #   numSV      <- getNumSV(experimentList[[i]])
+#   #   kernelName <- getKernel(experimentList[[i]])
+#   # 
+#   #   for(j in 1:length(numSV)){
+#   #     svDF[count, 1] <- kernelName
+#   #     svDF[count, 2] <- numSV[j]
+#   # 
+#   #     count <- count + 1
+#   #   }# for j
+#   # }# for i
+#   # 
+#   # pdf(file = paste0("./figures/", getDataset(experimentList[[1]]), "_supportvector_.pdf"))
+#   # print(ggplot(svDF, aes(x = Kernel, y = Robustness)) +
+#   #         ggtitle(paste0("Robustness of kernels on the ", toupper(getDataset(experimentList[[1]])), " data set")) +
+#   #         geom_boxplot(outlier.colour = NA, outlier.shape = 16,
+#   #                      outlier.size = 2, notch = FALSE) +
+#   #         geom_jitter(shape = 16, position = position_jitter(0.2)) +
+#   #         xlab("Kernel") +
+#   #         ylab("Robustness") +
+#   #         scale_y_continuous(expand = c(0, 0),limits = c(0,NA)))
+#   # dev.off()
+# 
+#   for(i in 1:numExperiments){
+#     currExp <- experimentList[[i]]
+#     
+#     numRuns <- getNumRuns(currExp)
+#     numSV   <- c(rep(0, numRuns))
+#     
+#     for(r in 1:numRuns){
+#       bestLoc  <- getBestKernel(currExp, r)
+#       numSV[r] <- getSV(currExp, r, bestLoc[2], bestLoc[3])
+#     }
+#     
+#     svDF[i, 1] <- getKernel(currExp)
+#     svDF[i, 2] <- mean(numSV)
+#   }
+#   
+#   pdf(file = paste0("./figures/", getDataset(experimentList[[1]]), "_supportvectors.pdf"))
+#   print(ggplot(svDF, aes(x = Kernel, y = Robustness)) +
+#           ggtitle(paste0("Robustness of kernels on the ", toupper(getDataset(experimentList[[1]])), " data set")) +
+#           geom_point() +
+#           xlab("Kernel") +
+#           ylab("Robustness") +
+#           scale_y_continuous(expand = c(0, 0),limits = c(0,NA)))
+#   dev.off()
+# }
