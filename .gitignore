@@ -3,3 +3,6 @@
 .RData
 .Ruserdata
 data/
+figures/
+cache/
+conduct.R
