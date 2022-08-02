@@ -37,7 +37,8 @@ processData <- function(){
   for(ds in 1:length(datasets)){
     createAccuracyBarplot(datasets[[ds]])
     createKernelTimeBoxplot(datasets[[ds]])
-    createCVTimeBoxplot(datasets[[ds]])
+    
+    #createCVTimeBoxplot(datasets[[ds]])
     #createSVplot(datasets[[ds]])
     #createAccuracySVplot(datasets[[ds]])
   }
@@ -86,7 +87,7 @@ createAccuracyBarplot <- function(experimentList){
   print(ggplot(accuracyDF) +
         ggtitle(paste0("Accuracy comparison on the ", toupper(getDataset(experimentList[[1]])), " data set")) +
         geom_bar(aes(x = Kernel, y = Accuracy), stat = "identity", fill = "deepskyblue4", width = 0.8, alpha = 0.8) +
-        theme_bw()+
+        theme_bw() +
         geom_errorbar(aes(x = Kernel, ymin = Accuracy - sd, ymax = Accuracy + sd), width = 0.4, colour = "black", alpha = 0.9, size = 1) +
         xlab("Kernel") +
         ylab("Accuracy (%)") +
@@ -113,7 +114,7 @@ createKernelTimeBoxplot <- function(experimentList){
     
     for(j in 1:length(times)){
       computeKTimeDF[count, 1] <- kernelName
-      computeKTimeDF[count, 2] <- times[j] 
+      computeKTimeDF[count, 2] <- times[j]
       
       count <- count + 1
     }# for j
@@ -121,9 +122,9 @@ createKernelTimeBoxplot <- function(experimentList){
   
   computeKTimeDF$Kernel <- orderXaxis(computeKTimeDF$Kernel)
   
-  # Box plot code for kernel compute time
+  #Box plot code for kernel compute time
   pdf(file = paste0("./figures/", getDataset(experimentList[[1]]), "_KernelComputeTime.pdf"))
-  print(ggplot(computeKTimeDF, aes(x = Kernel, y = ComputeTime)) + 
+  print(ggplot(computeKTimeDF, aes(x = Kernel, y = ComputeTime)) +
           ggtitle(paste0("Average Gram matrix computation time on the ", toupper(getDataset(experimentList[[1]])), " data set")) +
           geom_boxplot(outlier.colour = NA, outlier.shape = 16,
                        outlier.size = 2, notch = FALSE) +
@@ -132,6 +133,8 @@ createKernelTimeBoxplot <- function(experimentList){
           ylab("Computation Time (seconds)") +
           scale_y_continuous(trans = "log10"))
   dev.off()
+  
+  return(computeKTimeDF)
 }
 
 
@@ -153,7 +156,7 @@ createCVTimeBoxplot <- function(experimentList){
     
     for(j in 1:length(times)){
       computeFTimeDF[count, 1] <- kernelName
-      computeFTimeDF[count, 2] <- times[j] 
+      computeFTimeDF[count, 2] <- times[j]
       
       count <- count + 1
     }# for j
@@ -163,7 +166,7 @@ createCVTimeBoxplot <- function(experimentList){
   
   # Box plot code for SVM fitting time
   pdf(file = paste0("./figures/", getDataset(experimentList[[1]]), "_svmFittingTime.pdf"))
-  print(ggplot(computeFTimeDF, aes(x = Kernel, y = ComputeTime)) + 
+  print(ggplot(computeFTimeDF, aes(x = Kernel, y = ComputeTime)) +
         ggtitle(paste0("Average cross-validation fitting time on the ", toupper(getDataset(experimentList[[1]])), " data set")) +
         geom_boxplot(outlier.colour = NA, outlier.shape = 16,
                        outlier.size = 2, notch = FALSE) +
@@ -171,8 +174,9 @@ createCVTimeBoxplot <- function(experimentList){
         xlab("Kernel") +
         ylab("CV Fitting Time (seconds)") +
         scale_y_continuous(trans = "log10"))
-          
   dev.off()
+  
+  return(computeFTimeDF)
 }
 
 
