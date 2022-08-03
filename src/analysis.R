@@ -127,11 +127,14 @@ tuneSvmCost <- function(runObj, gram, target, cost, hypLoc, cvFolds){
       currSvm  <- ksvm(gram, target, C = cost[i], cross = cvFolds, type = "C-svc")
     })
     
-    runObj   <- setRunSVMstats(runObj = runObj, cost = cost[i], 
-                               CVerror = currSvm@cross, 
-                               trainingError = currSvm@error, 
-                               CVtime = time[["elapsed"]], 
-                               numSV = currSvm@nSV, hypLoc = hypLoc, cstLoc = i)
+    runObj <- setRunSVMstats(runObj = runObj, 
+                             cost = cost[i], 
+                             CVerror = currSvm@cross, 
+                             trainingError = currSvm@error, 
+                             CVtime = time[["elapsed"]], 
+                             numSV = currSvm@nSV, 
+                             hypLoc = hypLoc, 
+                             cstLoc = i)
   }# for i
 
   return(runObj)

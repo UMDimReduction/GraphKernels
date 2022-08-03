@@ -57,7 +57,7 @@ processData <- function(){
 #===================================================================
 createAccuracyBarplot <- function(experimentList){
   numExperiments  <- length(experimentList)
-  accuracyDF      <- data.frame("Kernel" = "", "Accuracy" = 0, "sd" = 0)
+  accuracyDF      <- data.frame("Kernel" = "", "Accuracy" = 0, "se" = 0)
   
   for(i in 1:numExperiments){
     currExperiment <- experimentList[[i]]
@@ -68,10 +68,10 @@ createAccuracyBarplot <- function(experimentList){
     
     for(r in 1:runs){
       bestModelLoc[[r]] <- getBestKernel(currExperiment, r)
-      
+
       h <- bestModelLoc[[r]][1]
       c <- bestModelLoc[[r]][2]
-      
+
       accuracy[r] <- (1 - getCVerror(currExperiment, r, h, c))
     }
     
@@ -90,7 +90,7 @@ createAccuracyBarplot <- function(experimentList){
         theme_bw() +
         theme(axis.text = element_text(size = 15), 
               axis.title = element_text(size = 15)) +     
-        geom_errorbar(aes(x = Kernel, ymin = Accuracy - sd, ymax = Accuracy + sd), width = 0.4, colour = "black", alpha = 0.9, size = 0.6) +
+        geom_errorbar(aes(x = Kernel, ymin = Accuracy - se, ymax = Accuracy + se), width = 0.4, colour = "black", alpha = 0.9, size = 0.6) +
         xlab("Kernel") +
         ylab("Accuracy (%)") +
         scale_y_continuous(expand = c(0, 0), breaks = scales::pretty_breaks(n = 10), limits = c(0,100)))
@@ -134,9 +134,8 @@ createKernelTimeBoxplot <- function(experimentList){
         theme(axis.text = element_text(size = 15),
               axis.title = element_text(size = 15)) + 
         xlab("Kernel") +
-        ylab("Computation Time (seconds)"))
-        # +
-        #   scale_y_continuous(trans = "log10"))
+        ylab("Computation Time (seconds)") +
+        scale_y_continuous(expand = c(0, 0),breaks = scales::pretty_breaks(n = 10), limits = c(0, max(computeKTimeDF[,2]) * 1.1)))
   dev.off()
   
   return(computeKTimeDF)
