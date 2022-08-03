@@ -88,13 +88,11 @@ tuneHyperparameter <- function(experiment, target, currRun, dataset, hyperparame
   
   for(h in 1:length(hyperparameter)){
     time <- system.time({
-      gram     <- computeKernel(dataset = dataset, kernel = experiment$kernel, 
+      gram <- computeKernel(dataset = dataset, kernel = experiment$kernel, 
                                 parameter = hyperparameter[h])
       if(scale){
-        gram   <- scaleToUnitInterval(matrix = gram)
+        gram <- scaleToUnitInterval(matrix = gram)
       }
-      
-      
     })
     
     run <- tuneSvmCost(runObj = run, gram = gram, 
