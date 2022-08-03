@@ -25,7 +25,7 @@ processData <- function(){
     experiment <- readRDS(file)
     currDataSetName <- getDataset(experiment)
     
-    # Give each data set its own spot in the list, and the experiment to the corrseponding list
+    # Give each data set its own spot in the list, and the experiment to the corresponding list
     if(!(currDataSetName %in% names(datasets))){
       datasets[[currDataSetName]] <- vector(mode = "list", length = 0)
     }
@@ -85,10 +85,12 @@ createAccuracyBarplot <- function(experimentList){
   
   pdf(file = paste0("./figures/", getDataset(experimentList[[1]]), "_accuracy.pdf"))
   print(ggplot(accuracyDF) +
-        ggtitle(paste0("Accuracy comparison on the ", toupper(getDataset(experimentList[[1]])), " data set")) +
+        #ggtitle(paste0("Accuracy comparison on the ", toupper(getDataset(experimentList[[1]])), " data set")) +
         geom_bar(aes(x = Kernel, y = Accuracy), stat = "identity", fill = "deepskyblue4", width = 0.8, alpha = 0.8) +
         theme_bw() +
-        geom_errorbar(aes(x = Kernel, ymin = Accuracy - sd, ymax = Accuracy + sd), width = 0.4, colour = "black", alpha = 0.9, size = 1) +
+        theme(axis.text = element_text(size = 15), 
+              axis.title = element_text(size = 15)) +     
+        geom_errorbar(aes(x = Kernel, ymin = Accuracy - sd, ymax = Accuracy + sd), width = 0.4, colour = "black", alpha = 0.9, size = 0.6) +
         xlab("Kernel") +
         ylab("Accuracy (%)") +
         scale_y_continuous(expand = c(0, 0), breaks = scales::pretty_breaks(n = 10), limits = c(0,100)))
@@ -125,13 +127,16 @@ createKernelTimeBoxplot <- function(experimentList){
   #Box plot code for kernel compute time
   pdf(file = paste0("./figures/", getDataset(experimentList[[1]]), "_KernelComputeTime.pdf"))
   print(ggplot(computeKTimeDF, aes(x = Kernel, y = ComputeTime)) +
-          ggtitle(paste0("Average Gram matrix computation time on the ", toupper(getDataset(experimentList[[1]])), " data set")) +
-          geom_boxplot(outlier.colour = NA, outlier.shape = 16,
-                       outlier.size = 2, notch = FALSE) +
-          geom_jitter(shape = 16, position = position_jitter(0.2)) +
-          xlab("Kernel") +
-          ylab("Computation Time (seconds)") +
-          scale_y_continuous(trans = "log10"))
+        #ggtitle(paste0("Average Gram matrix computation time on the ", toupper(getDataset(experimentList[[1]])), " data set")) +
+        geom_boxplot(outlier.colour = NA, outlier.shape = 16,
+                     outlier.size = 2, notch = FALSE) +
+        geom_jitter(shape = 16, position = position_jitter(0.2)) +
+        theme(axis.text = element_text(size = 15),
+              axis.title = element_text(size = 15)) + 
+        xlab("Kernel") +
+        ylab("Computation Time (seconds)"))
+        # +
+        #   scale_y_continuous(trans = "log10"))
   dev.off()
   
   return(computeKTimeDF)
@@ -465,6 +470,7 @@ getBestKernel <- function(experiment, run){
   
   for(h in 1:getNumHyperparams(experiment)){
     for(c in 1:getNumCost(experiment)){
+      #currCVerror <- getCVerror(experiment, run, h, c)
       currCVerror <- getCVerror(experiment, run, h, c)
       currNumSV   <- getSV(experiment, run, h, c)
       
