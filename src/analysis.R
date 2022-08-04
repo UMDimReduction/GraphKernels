@@ -30,7 +30,7 @@ runExperiment <- function(dataset, kernel, runs = 1, hyperparameter = c(NA), cos
   message(paste0("Beginning ", kernel, " Kernel experiments..."))
   message(paste0(Sys.time()))
   
-  clockin    <- as_hms(Sys.time())
+  time <- proc.time()[["elapsed"]]
   experiment <- createExperimentObject(dataset = deparse(substitute(dataset)), 
                                        kernel = kernel)
   
@@ -65,8 +65,8 @@ runExperiment <- function(dataset, kernel, runs = 1, hyperparameter = c(NA), cos
   
   writeToFile(experiment = experiment)
   
-  clockout <- as_hms(Sys.time())
-  time     <- as_hms(clockout - clockin)
+  time <- proc.time()[["elapsed"]] - time
+  
   message(paste0("...done!\nTotal experiment time: ", time))
 }
 
