@@ -301,8 +301,9 @@ createSVpointPlot <- function(experimentList){
 #' @param datasets list of lists of experiment objects organized by data set
 #===================================================================
 createTable <- function(datasets){
-  df <- data.frame("dataset" = "", "bestkernel" = "","hyperparameter" = 0, 
-                   "cost" = 0, "accuracy" = 0, "kerneltime" = 0, "CVtime" = 0)
+  df <- data.frame("dataset" = "", "bestkernel" = "", "accuracy" = 0, 
+                   "kerneltime" = 0, "CVtime" = 0, "hyperparameter" = 0, 
+                   "cost" = 0)
   
   for(dset in 1:length(datasets)){
     bestLoc <- getOverallBestKernel(datasets[[dset]])
@@ -314,16 +315,17 @@ createTable <- function(datasets){
     
     df[dset, 1] <- getDataset(expObj = best)
     df[dset, 2] <- getKernel(expObj = best)
-    df[dset, 3] <- getHyperparam(expObj = best, runLoc = r, hypLoc = h)
-    df[dset, 4] <- getCost(expObj = best, runLoc = r, hypLoc = h, cstLoc = c)
-    df[dset, 5] <- (1 - getCVerror(expObj = best, runLoc = r, hypLoc = h, cstLoc = c))
-    df[dset, 6] <- getKernelComputeTime(expObj = best, runLoc = r, hypLoc = h)
-    df[dset, 7] <- getCVtime(expObj = best, runLoc = r, hypLoc = h, cstLoc = c)
+    df[dset, 3] <- (1 - getCVerror(expObj = best, runLoc = r, hypLoc = h, cstLoc = c)) * 100
+    df[dset, 4] <- getKernelComputeTime(expObj = best, runLoc = r, hypLoc = h)
+    df[dset, 5] <- getCVtime(expObj = best, runLoc = r, hypLoc = h, cstLoc = c)
+    df[dset, 6] <- getHyperparam(expObj = best, runLoc = r, hypLoc = h)
+    df[dset, 7] <- getCost(expObj = best, runLoc = r, hypLoc = h, cstLoc = c)
   }
   
   table <- kable(head(df), digits = 2, 
-                 col.names = c("Data set", "Best kernel", "Parameter", "Cost", 
-                               "Accuracy (%)", "Gram matrix (s)", "CV (s)"), "latex",
+                 col.names = c("Data set", "Best kernel", 
+                               "Accuracy (%)", "Gram matrix (s)", "CV (s)", 
+                               "Parameter", "Cost"), "latex",
                  caption = "Best performing kernel on each data set")
   
   
@@ -501,6 +503,7 @@ orderXaxis <- function(col){
                 level = c("VH", "VHG", "VEH", "VEHG", "VVEH", "EH", "EHG", "WL"))
   return(col)
 }
+
 
 
 #-------------------------------------------------------------------------------
