@@ -23,7 +23,8 @@ How to use:
 
 1. Download package and set your working directory to ./GraphKernels
 2. Create "cache" and "figure" directories in the working directory
-3. (Data set?)
+3. Unzip data_graphml.zip contents, and select the appropriate file based on operating system
+4. Place all contents of the selected folder in a directory titled "data", and place "data" in the root directory
 
 ```
 > mutag <- read.dataset("mutag")
