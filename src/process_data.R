@@ -37,8 +37,7 @@ processData <- function(){
   for(ds in 1:length(datasets)){
     createAccuracyBarplot(datasets[[ds]])
     createKernelTimeBoxplot(datasets[[ds]])
-    
-    #createCVTimeBoxplot(datasets[[ds]])
+    createCVTimeBoxplot(datasets[[ds]])
     #createSVplot(datasets[[ds]])
     #createAccuracySVplot(datasets[[ds]])
   }
@@ -471,7 +470,6 @@ getBestKernel <- function(experiment, run){
   
   for(h in 1:getNumHyperparams(experiment)){
     for(c in 1:getNumCost(experiment)){
-      #currCVerror <- getCVerror(experiment, run, h, c)
       currCVerror <- getCVerror(experiment, run, h, c)
       currNumSV   <- getSV(experiment, run, h, c)
       

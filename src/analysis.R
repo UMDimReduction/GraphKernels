@@ -60,12 +60,14 @@ runExperiment <- function(dataset, kernel, runs = 1, hyperparameter = c(NA), cos
   }
   
   for(i in 1:runs){
-    experiment <- addRun(experiment, runList[[i]])
+    experiment <- addRun(experiment = experiment, run = runList[[i]])
   }
   
-  writeToFile(experiment = experiment)
-  
   time <- proc.time()[["elapsed"]] - time
+  
+  experiment <- setTotalRuntime(expObj = experiment, time = time)
+  
+  writeToFile(experiment = experiment)
   
   message(paste0("...done!\nTotal experiment time: ", time))
 }
@@ -135,6 +137,7 @@ tuneSvmCost <- function(runObj, gram, target, cost, hypLoc, cvFolds){
                              numSV = currSvm@nSV, 
                              hypLoc = hypLoc, 
                              cstLoc = i)
+    gc()
   }# for i
 
   return(runObj)

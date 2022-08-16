@@ -15,7 +15,7 @@ createExperimentObject <- function(datasetName, kernel){
   repeatRun <- vector(mode = "list", length = 0)
   runList   <- list("runs" = repeatRun)
   
-  expObj        <- append(list("kernel" = kernel, "dataset" = datasetName), runList)
+  expObj        <- append(list("kernel" = kernel, "dataset" = datasetName, "totalRuntime" = -1), runList)
   class(expObj) <- "experiment"
   
   return(expObj)
@@ -108,11 +108,22 @@ getKernel <- function(expObj){
 }
 
 
+getTotalRuntime <- function(expObj){
+  return(expObj$totalRunTime)
+}
+
+
 #--------------------- Mutators
 
 
 setHyperparam <- function(expObj, hyperparam, runLoc, hypLoc){
   expObj$runs[[runLoc]][[hypLoc]]$hyperparameter <- hyperparam
+  return(expObj)
+}
+
+
+setTotalRuntime <- function(expObj, time){
+  expObj$totalRuntime <- time
   return(expObj)
 }
 
