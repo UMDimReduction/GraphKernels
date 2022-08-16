@@ -5,18 +5,24 @@ An R testing suite for the "graph-kernels" package using the support vector mach
 The file read_data.R contains a modified function from https://github.com/BorgwardtLab/graph-kernels
 that allows for igraph data sets to be read and stored in lists.
 
-List of available kernels:
+See the document https://arxiv.org/abs/2208.04929 for a general overview of the graph kernel literature.
 
-- "VH" - Vertex Histogram Kernel - NA
-- "VHG" - Vertex Histogram Kernel combined with RBF - RBF parameter
-- "VEH" - Vertex-Edge Histogram Kernel - NA
-- "VEHG" - Vertex Edge Histogram Kernel combined with RBF - RBF parameter
-- "VVHG" - Vertex Vertex-edge Histogram Kernel (VH + h * VEH) - hyperparameter 'h'
-- "EH" - Edge Histogram Kernel - NA
-- "EHG" - Edge Histogram Kernel combined with RBF - RBF parameter
-- "WL" - Weisfeiler-Lehman subtree kernel - Number of iterations of the algorithm
-- "GR" - Geometric Random Walk Kernel - coefficient
-- "SP" - Shortest-Path Kernel - NA
+
+Available kernels:
+
+| Kernel Name                    | Kernel Key | Hyperparameter       |
+| ------------------------------ | ---------- | -------------------- |
+| Vertex Histogram               | "VH"       | NA                   | 
+| Gaussian Vertex Histogram      | "VHG"      | RBF parameter &#963; |
+| Vertex-Edge Histogram Kernel   | "VEH"      | NA                   |
+| Gaussian Vertex Edge Histogram | "VEHG"     | RBF parameter &#963; |
+| Vertex Vertex-edge Histogram   | "VVHG"     | "VEH" Scalar         | 
+| Edge Histogram                 | "EH"       | NA                   |
+| Gaussian Edge Histogram        | "EHG"      | RBF parameter &#963; |
+| Weisfeiler-Lehman subtree      | "WL"       | Number of iterations |
+| Geometric Random Walk          | "GR"       | Weight Coefficient   |
+| Exponential Random Walk        | "ER"       | Weight Coefficient   | 
+| Shortest-Path                  | "SP"       | NA                   |
 
 
 How to use:
