@@ -15,23 +15,7 @@ source("./src/experiment_obj.R")
 #' files in the cache directory
 #===================================================================
 processData <- function(){
-  files    <- list.files(path = "./cache/", pattern = "*.rds", full.names = TRUE)
-  datasets <- vector(mode = "list", length = 0)
-  
-  # Create list containing lists of experiment objects by data set
-  for(file in files){
-    message(paste0("processing ", basename(file), "..."))
-
-    experiment <- readRDS(file)
-    currDataSetName <- getDataset(experiment)
-    
-    # Give each data set its own spot in the list, and the experiment to the corresponding list
-    if(!(currDataSetName %in% names(datasets))){
-      datasets[[currDataSetName]] <- vector(mode = "list", length = 0)
-    }
-
-    datasets[[currDataSetName]][[length(datasets[[currDataSetName]]) + 1]] <- experiment
-  }# for files
+  datasets <- readExperimentFiles()
   
   message("Creating graphs...")
   for(ds in 1:length(datasets)){
@@ -44,6 +28,80 @@ processData <- function(){
   
   message("Creating table...")
   createTable(datasets)
+}
+
+#===================================================================
+#' Prints a summary of the experiments on each data set to the console
+#===================================================================
+printSummary <- function(){
+  options(scipen=999)
+  datasets <- readExperimentFiles()
+  message(paste("\n\n"))
+  for(ds in 1:length(datasets)){
+    message(paste0(getDataset(datasets[[ds]][[1]])))
+    printDatasetSummary(datasets[[ds]])
+    message(paste("\n\n"))
+  }
+  options(scipen=0, digits=7)
+}
+
+
+#===================================================================
+#' Prints a data frame containing the best results achieved with each
+#' kernel on a data set
+#' 
+#' @param experimentList list of experiment objects on the same data set
+#===================================================================
+printDatasetSummary <- function(experimentList){
+  numExperiments  <- length(experimentList)
+  df <- data.frame("Kernel" = "", "Accuracy" = 0, "hyperparameter" = 0, "cost" = 0)
+  
+  for(i in 1:numExperiments){
+    currExperiment <- experimentList[[i]]
+    df[i, 1] <- getKernel(currExperiment)
+    bestLoc  <- getBestKernel(currExperiment)
+    r <- bestLoc[1]
+    h <- bestLoc[2]
+    c <- bestLoc[3]
+    df[i, 2] <- (1 - getCVerror(currExperiment, r, h, c)) * 100
+    df[i, 3] <- getHyperparam(currExperiment, r, h)
+    df[i, 4] <- getCost(currExperiment, r, h, c)
+  }
+  
+  print.data.frame(df)
+}
+
+
+#===================================================================
+#' Reads all .rds files containing experiment objects in the cache 
+#' directory.
+#' @return dataframe containing experiment objects organized by dataset
+#===================================================================
+readExperimentFiles <- function(){
+  files    <- list.files(path = "./cache/", pattern = "*.rds", full.names = TRUE)
+  datasets <- vector(mode = "list", length = 0)
+  
+  # Create list containing lists of experiment objects by data set
+  for(file in files){
+    message(paste0("processing ", basename(file), "..."))
+    
+    experiment <- readRDS(file)
+    
+    if(class(experiment) != "experiment"){
+      stop("Error: file in cache directory contains object not of type \'experiment\'")
+    }
+    
+    currDataSetName <- getDataset(experiment)
+    
+    # Give each data set its own spot in the list, and the experiment to the corresponding list
+    if(!(currDataSetName %in% names(datasets))){
+      datasets[[currDataSetName]] <- vector(mode = "list", length = 0)
+    }
+    
+    datasets[[currDataSetName]][[length(datasets[[currDataSetName]]) + 1]] <- experiment
+  }# for files
+  
+  return(datasets)
 }
 
 
@@ -66,7 +124,7 @@ createAccuracyBarplot <- function(experimentList){
     bestModelLoc <- vector(mode = "list", length = runs)
     
     for(r in 1:runs){
-      bestModelLoc[[r]] <- getBestKernel(currExperiment, r)
+      bestModelLoc[[r]] <- getBestKernelOnRun(currExperiment, r)
 
       h <- bestModelLoc[[r]][1]
       c <- bestModelLoc[[r]][2]
@@ -136,8 +194,6 @@ createKernelTimeBoxplot <- function(experimentList){
         ylab("Computation Time (seconds)") +
         scale_y_continuous(expand = c(0, 0),breaks = scales::pretty_breaks(n = 10), limits = c(0, max(computeKTimeDF[,2]) * 1.1)))
   dev.off()
-  
-  return(computeKTimeDF)
 }
 
 
@@ -178,8 +234,6 @@ createCVTimeBoxplot <- function(experimentList){
         ylab("CV Fitting Time (seconds)") +
         scale_y_continuous(trans = "log10"))
   dev.off()
-  
-  return(computeFTimeDF)
 }
 
 
@@ -273,7 +327,7 @@ createSVpointPlot <- function(experimentList){
     numSV   <- c(rep(0, numRuns))
     
     for(r in 1:numRuns){
-      bestLoc  <- getBestKernel(currExp, r)
+      bestLoc  <- getBestKernelOnRun(currExp, r)
       numSV[r] <- getSV(currExp, r, bestLoc[2], bestLoc[3])
     }
     
@@ -456,6 +510,41 @@ getOverallBestKernel <- function(experiments){
 
 
 #===================================================================
+#' Determines the best model of the given experiment.
+#' 
+#' @param experiment experiment object
+#' @return the location of the experiment object as a numeric vector 
+#'         of the form (hyperparameter location, cost location)
+#===================================================================
+getBestKernel <- function(experiement){
+  bestCVerror <- .Machine$integer.max
+  bestNumSV   <- .Machine$integer.max
+  location    <- c(-1, -1, -1)
+  
+  for(r in 1: getNumRuns(experiement)){
+    for(h in 1:getNumHyperparams(experiement)){
+      for(c in 1:getNumCost(experiement)){
+        currCVerror <- getCVerror(experiement, r, h, c)
+        currNumSV   <- getSV(experiement, r, h, c)
+        
+        if(currCVerror < bestCVerror || 
+           ((currCVerror == bestCVerror) && (currNumSV < bestNumSV))){
+          bestCVerror <- currCVerror
+          bestNumSV   <- currNumSV
+          
+          location[1] <- r
+          location[2] <- h
+          location[3] <- c
+        }
+      }# for c
+    }# for h
+  }# for r
+  
+  return(location)
+}
+
+
+#===================================================================
 #' Determines the best model in the given run of the given experiment.
 #' 
 #' @param experiment experiment object
@@ -463,7 +552,7 @@ getOverallBestKernel <- function(experiments){
 #' @return the location of the experiment object as a numeric vector 
 #'         of the form (hyperparameter location, cost location)
 #===================================================================
-getBestKernel <- function(experiment, run){
+getBestKernelOnRun <- function(experiment, run){
   bestCVerror <- .Machine$integer.max
   bestNumSV   <- .Machine$integer.max
   location    <- c(-1,-1)
