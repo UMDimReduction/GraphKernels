@@ -1,5 +1,7 @@
 # GraphKernels Package
 
+## R
+
 An R testing suite for the "graph-kernels" package using the support vector machine implementation in the "kernlab" package.
 
 The file read_data.R contains a modified function from https://github.com/BorgwardtLab/graph-kernels
@@ -40,3 +42,16 @@ How to use:
 > runExperiment(dataset = mutag, kernel = "WL", runs = 10, hyperparameter = h, cost = C)
 > processData()
 ```
+
+## MATLAB
+
+A MATLAB script for testing graph kernels from the package available at https://bsse.ethz.ch/mlcb/research/machine-learning/graph-kernels/weisfeiler-lehman-graph-kernels.html by Nino Shervashidze and Karsten M. Borgwardt. Requires installation of the MATLAB version of LIBSVM for classification. LIBSVM is available at https://www.csie.ntu.edu.tw/~cjlin/libsvm/.
+
+This script contains code to perform automatic cost tuning, as well as tuning via cross-validation and then the construction of a final classifier for prediction on dedicated testing sets.
+
+How to use:
+1. Install LIBSVM into MATLAB
+2. Install the graph kernel package from https://bsse.ethz.ch/mlcb/research/machine-learning/graph-kernels/weisfeiler-lehman-graph-kernels.html into MATLAB
+3. Unzip the MATLAB dataset file and place the files in the same director as the code in step 2
+4. Add both LIBSVM and the graph kernels on the path
+5. Run the given analysis.m script found in src. Note that it comes ready with an example using the script
